@@ -1,20 +1,15 @@
-import type { MessageEventDto } from "../../lib/socket/socket-events";
+import type {
+  Message,
+  MessageHistoryResponse,
+  ReadWatermarkResponse,
+} from "../../lib/api/types";
 
-export type MessageDto = MessageEventDto;
-
-export interface MessageHistoryPage {
-  items: MessageDto[];
-  nextCursor: string | null;
-}
+export type MessageDto = Message;
+export type MessageHistoryPage = MessageHistoryResponse;
 
 export interface SendMessageInput {
   text: string;
   clientMessageId?: string;
 }
 
-export interface ReadWatermarkDto {
-  conversationId: string;
-  throughMessageId: string;
-  readAt: string;
-  status: "created" | "advanced" | "unchanged";
-}
+export type ReadWatermarkDto = ReadWatermarkResponse;

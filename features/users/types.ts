@@ -1,11 +1,7 @@
-export interface SearchUser {
-  id: string;
-  username: string;
-  displayName: string;
-  avatarUrl: string | null;
-}
+import type {
+  PublicPeerUser,
+  UserSearchResponse,
+} from "../../lib/api/types";
 
-export interface UserSearchPage {
-  items: SearchUser[];
-  nextCursor: string | null;
-}
+export type SearchUser = PublicPeerUser;
+export type UserSearchPage = UserSearchResponse;

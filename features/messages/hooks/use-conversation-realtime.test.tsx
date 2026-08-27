@@ -38,6 +38,7 @@ describe("useConversationRealtime", () => {
       body: "REST response",
       createdAt: "2030-01-01T10:00:00.000Z",
       editedAt: null,
+      deletedAt: null,
     };
     const initial: MessageHistoryData = {
       pages: [

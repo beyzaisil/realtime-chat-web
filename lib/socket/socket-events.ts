@@ -1,3 +1,5 @@
+import type { Message } from "../api/types";
+
 export interface SessionReadyPayload {
   userId: string;
   socketId: string;
@@ -17,16 +19,10 @@ export type PresenceSubscriptionAck =
   | { ok: true; data: Record<string, PresenceState> }
   | { ok: false; error: { code: "VALIDATION_ERROR" } };
 
-export interface MessageEventDto {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  clientMessageId: string;
-  kind: "TEXT";
+export type MessageEventDto = Omit<Message, "body" | "deletedAt"> & {
   body: string;
-  createdAt: string;
-  editedAt: string | null;
-}
+  deletedAt: null;
+};
 
 export interface ReadUpdatedPayload {
   conversationId: string;

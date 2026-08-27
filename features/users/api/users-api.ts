@@ -1,16 +1,15 @@
+import type {
+  SearchUsersOperationResponse,
+  SearchUsersQuery,
+} from "../../../lib/api/types";
 import type { ApiClient } from "../../../lib/http/api-client";
-import type { UserSearchPage } from "../types";
 
-export interface SearchUsersInput {
-  query: string;
-  cursor?: string;
-  limit?: number;
-}
+export type SearchUsersInput = SearchUsersQuery;
 
 export async function searchUsers(
   apiClient: ApiClient,
   input: SearchUsersInput,
-): Promise<UserSearchPage> {
+): Promise<SearchUsersOperationResponse> {
   const search = new URLSearchParams({
     query: input.query,
     limit: String(input.limit ?? 20),
@@ -20,7 +19,7 @@ export async function searchUsers(
     search.set("cursor", input.cursor);
   }
 
-  return apiClient.request<UserSearchPage>(
+  return apiClient.request<SearchUsersOperationResponse>(
     `/api/v1/users?${search.toString()}`,
   );
 }

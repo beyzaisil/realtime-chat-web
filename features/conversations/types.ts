@@ -1,30 +1,11 @@
-export interface ConversationUser {
-  id: string;
-  username: string;
-  displayName: string;
-  avatarUrl: string | null;
-}
+import type {
+  ConversationListResponse,
+  DirectConversation as ContractDirectConversation,
+  ListedConversation,
+  PublicPeerUser,
+} from "../../lib/api/types";
 
-export interface DirectConversation {
-  id: string;
-  type: "DIRECT";
-  title: string | null;
-  createdAt: string;
-  otherUser: ConversationUser;
-}
-
-export interface ConversationListItem extends DirectConversation {
-  lastMessageAt: string | null;
-  lastMessage: {
-    id: string;
-    body: string;
-    senderId: string;
-    createdAt: string;
-  } | null;
-  unreadCount: number;
-}
-
-export interface ConversationPage {
-  items: ConversationListItem[];
-  nextCursor: string | null;
-}
+export type ConversationUser = PublicPeerUser;
+export type DirectConversation = ContractDirectConversation;
+export type ConversationListItem = ListedConversation;
+export type ConversationPage = ConversationListResponse;

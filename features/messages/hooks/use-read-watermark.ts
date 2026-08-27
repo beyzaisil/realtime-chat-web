@@ -34,7 +34,9 @@ export function useReadWatermark(
 
     const messageId = visibleMessage.id;
     requestedIdsRef.current.add(messageId);
-    void updateReadWatermark(apiClient, conversationId, messageId)
+    void updateReadWatermark(apiClient, conversationId, {
+      throughMessageId: messageId,
+    })
       .then(() =>
         queryClient.invalidateQueries({
           queryKey: conversationKeys.lists(),

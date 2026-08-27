@@ -27,6 +27,7 @@ const conversation: ConversationListItem = {
     body: "Merhaba Alice",
     senderId: "user-2",
     createdAt: "2030-01-02T10:00:00.000Z",
+    deletedAt: null,
   },
   unreadCount: 4,
 };
