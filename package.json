@@ -11,6 +11,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "contract:sync": "node scripts/sync-openapi.mjs",
+    "contract:generate": "node scripts/generate-openapi.mjs",
+    "contract:check": "node scripts/check-openapi.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -32,6 +35,7 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.1.0",
     "jsdom": "^27.1.0",
+    "openapi-typescript": "7.13.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vitest": "^4.0.0"
