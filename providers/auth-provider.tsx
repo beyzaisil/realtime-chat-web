@@ -13,10 +13,11 @@ import {
 
 import { requestRefreshedAccessToken } from "../lib/auth/refresh-request";
 import type {
-  AuthResponse,
   CurrentUserResponse,
   LoginInput,
+  LoginResponse,
   RegisterInput,
+  RegisterResponse,
   UserDto,
 } from "../lib/auth/types";
 import { publicEnv } from "../lib/env";
@@ -101,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (input: LoginInput): Promise<void> => {
-      const result = await apiClient.request<AuthResponse>(
+      const result = await apiClient.request<LoginResponse>(
         "/api/v1/auth/login",
         { method: "POST", auth: "none", json: input },
       );
@@ -114,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (input: RegisterInput): Promise<void> => {
-      const result = await apiClient.request<AuthResponse>(
+      const result = await apiClient.request<RegisterResponse>(
         "/api/v1/auth/register",
         { method: "POST", auth: "none", json: input },
       );

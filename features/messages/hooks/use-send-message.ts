@@ -27,8 +27,8 @@ export function useSendMessage(conversationId: string) {
       }
 
       return createMessage(apiClient, conversationId, {
-        text,
         clientMessageId: input.clientMessageId ?? crypto.randomUUID(),
+        content: { type: "text", text },
       });
     },
     onSuccess: (message) => {

@@ -1,15 +1,21 @@
-import type { ApiClient } from "../../../lib/http/api-client";
 import type {
-  MessageDto,
-  MessageHistoryPage,
-  ReadWatermarkDto,
-} from "../types";
+  CreateMessageOperationRequest,
+  CreateMessageOperationResponse,
+  CreateMessagePath,
+  ListMessagesOperationResponse,
+  ListMessagesPath,
+  ListMessagesQuery,
+  UpdateReadWatermarkOperationRequest,
+  UpdateReadWatermarkOperationResponse,
+  UpdateReadWatermarkPath,
+} from "../../../lib/api/types";
+import type { ApiClient } from "../../../lib/http/api-client";
 
 export async function listMessages(
   apiClient: ApiClient,
-  conversationId: string,
-  input: { before?: string; limit?: number } = {},
-): Promise<MessageHistoryPage> {
+  conversationId: ListMessagesPath["conversationId"],
+  input: ListMessagesQuery = {},
+): Promise<ListMessagesOperationResponse> {
   const search = new URLSearchParams({
     limit: String(input.limit ?? 50),
   });
@@ -18,35 +24,32 @@ export async function listMessages(
     search.set("before", input.before);
   }
 
-  return apiClient.request<MessageHistoryPage>(
+  return apiClient.request<ListMessagesOperationResponse>(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages?${search.toString()}`,
   );
 }
 
 export async function createMessage(
   apiClient: ApiClient,
-  conversationId: string,
-  input: { clientMessageId: string; text: string },
-): Promise<MessageDto> {
-  return apiClient.request<MessageDto>(
+  conversationId: CreateMessagePath["conversationId"],
+  input: CreateMessageOperationRequest,
+): Promise<CreateMessageOperationResponse> {
+  return apiClient.request<CreateMessageOperationResponse>(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
     {
       method: "POST",
-      json: {
-        clientMessageId: input.clientMessageId,
-        content: { type: "text", text: input.text },
-      },
+      json: input,
     },
   );
 }
 
 export async function updateReadWatermark(
   apiClient: ApiClient,
-  conversationId: string,
-  throughMessageId: string,
-): Promise<ReadWatermarkDto> {
-  return apiClient.request<ReadWatermarkDto>(
+  conversationId: UpdateReadWatermarkPath["conversationId"],
+  input: UpdateReadWatermarkOperationRequest,
+): Promise<UpdateReadWatermarkOperationResponse> {
+  return apiClient.request<UpdateReadWatermarkOperationResponse>(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/read`,
-    { method: "PUT", json: { throughMessageId } },
+    { method: "PUT", json: input },
   );
 }

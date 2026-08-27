@@ -69,7 +69,7 @@ export function useCreateDirectConversation() {
 
   return useMutation({
     mutationFn: (userId: string) =>
-      createDirectConversation(apiClient, userId),
+      createDirectConversation(apiClient, { userId }),
     onSuccess: (conversation) => {
       queryClient.setQueryData(
         conversationKeys.detail(conversation.id),

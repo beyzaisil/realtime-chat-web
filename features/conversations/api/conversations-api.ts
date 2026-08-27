@@ -1,18 +1,19 @@
-import type { ApiClient } from "../../../lib/http/api-client";
 import type {
-  ConversationPage,
-  DirectConversation,
-} from "../types";
+  CreateDirectConversationOperationRequest,
+  CreateDirectConversationOperationResponse,
+  GetConversationOperationResponse,
+  GetConversationPath,
+  ListConversationsOperationResponse,
+  ListConversationsQuery,
+} from "../../../lib/api/types";
+import type { ApiClient } from "../../../lib/http/api-client";
 
-export interface ListConversationsInput {
-  cursor?: string;
-  limit?: number;
-}
+export type ListConversationsInput = ListConversationsQuery;
 
 export async function listConversations(
   apiClient: ApiClient,
   input: ListConversationsInput = {},
-): Promise<ConversationPage> {
+): Promise<ListConversationsOperationResponse> {
   const search = new URLSearchParams();
 
   if (input.cursor !== undefined) {
@@ -20,26 +21,26 @@ export async function listConversations(
   }
   search.set("limit", String(input.limit ?? 20));
 
-  return apiClient.request<ConversationPage>(
+  return apiClient.request<ListConversationsOperationResponse>(
     `/api/v1/conversations?${search.toString()}`,
   );
 }
 
 export async function getConversation(
   apiClient: ApiClient,
-  conversationId: string,
-): Promise<DirectConversation> {
-  return apiClient.request<DirectConversation>(
+  conversationId: GetConversationPath["conversationId"],
+): Promise<GetConversationOperationResponse> {
+  return apiClient.request<GetConversationOperationResponse>(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
   );
 }
 
 export async function createDirectConversation(
   apiClient: ApiClient,
-  userId: string,
-): Promise<DirectConversation> {
-  return apiClient.request<DirectConversation>(
+  input: CreateDirectConversationOperationRequest,
+): Promise<CreateDirectConversationOperationResponse> {
+  return apiClient.request<CreateDirectConversationOperationResponse>(
     "/api/v1/conversations/direct",
-    { method: "POST", json: { userId } },
+    { method: "POST", json: input },
   );
 }

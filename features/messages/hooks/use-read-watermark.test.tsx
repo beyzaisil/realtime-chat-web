@@ -20,6 +20,7 @@ const incoming: MessageDto = {
   body: "Incoming",
   createdAt: "2030-01-01T10:00:00.000Z",
   editedAt: null,
+  deletedAt: null,
 };
 
 describe("useReadWatermark", () => {

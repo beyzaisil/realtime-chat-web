@@ -21,6 +21,7 @@ function message(id: string, createdAt: string): MessageDto {
     body: id,
     createdAt,
     editedAt: null,
+    deletedAt: null,
   };
 }
 

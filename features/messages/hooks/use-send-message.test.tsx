@@ -67,6 +67,7 @@ describe("useSendMessage", () => {
       body: "Merhaba",
       createdAt: "2030-01-01T10:00:00.000Z",
       editedAt: null,
+      deletedAt: null,
     };
     const requestMock = vi.fn().mockResolvedValue(response);
     const { queryClient, Wrapper } = createHarness({
