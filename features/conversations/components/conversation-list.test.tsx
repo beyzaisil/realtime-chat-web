@@ -8,6 +8,7 @@ import { ConversationList } from "./conversation-list";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/chat" }));
 vi.mock("../../presence/hooks/use-conversation-presence");
+vi.mock("../hooks/use-conversation-list-realtime");
 vi.mock("../hooks/use-conversations");
 
 const conversation: ConversationListItem = {
@@ -79,6 +80,48 @@ describe("ConversationList", () => {
     expect(screen.getByText("Merhaba Alice")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByLabelText("Çevrimiçi")).toBeInTheDocument();
+  });
+
+  it("renders a distinct preview for a deleted last message", () => {
+    vi.mocked(useConversations).mockReturnValue(
+      queryResult({
+        conversations: [
+          {
+            ...conversation,
+            lastMessage: {
+              ...conversation.lastMessage!,
+              body: "Silinen eski önizleme",
+              deletedAt: "2030-01-02T10:05:00.000Z",
+            },
+          },
+        ],
+      }),
+    );
+
+    render(<ConversationList />);
+
+    expect(screen.getByText("Mesaj silindi.")).toBeInTheDocument();
+    expect(screen.queryByText("Silinen eski önizleme")).not.toBeInTheDocument();
+    expect(screen.queryByText("Henüz mesaj yok")).not.toBeInTheDocument();
+  });
+
+  it("renders no-message preview only when lastMessage is null", () => {
+    vi.mocked(useConversations).mockReturnValue(
+      queryResult({
+        conversations: [
+          {
+            ...conversation,
+            lastMessageAt: null,
+            lastMessage: null,
+          },
+        ],
+      }),
+    );
+
+    render(<ConversationList />);
+
+    expect(screen.getByText("Henüz mesaj yok")).toBeInTheDocument();
+    expect(screen.queryByText("Mesaj silindi.")).not.toBeInTheDocument();
   });
 
   it("loads the next page from the list action", () => {

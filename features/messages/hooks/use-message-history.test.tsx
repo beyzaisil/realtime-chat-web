@@ -11,7 +11,11 @@ import {
 import type { MessageDto } from "../types";
 import { useMessageHistory } from "./use-message-history";
 
-function message(id: string, createdAt: string): MessageDto {
+function message(
+  id: string,
+  createdAt: string,
+  overrides: Partial<MessageDto> = {},
+): MessageDto {
   return {
     id,
     conversationId: "conversation-1",
@@ -22,6 +26,7 @@ function message(id: string, createdAt: string): MessageDto {
     createdAt,
     editedAt: null,
     deletedAt: null,
+    ...overrides,
   };
 }
 
@@ -50,8 +55,11 @@ function createWrapper(apiClient: ApiClient) {
 }
 
 describe("useMessageHistory", () => {
-  it("loads older pages in chronological order and removes duplicates", async () => {
-    const third = message("message-3", "2030-01-03T10:00:00.000Z");
+  it("loads older pages in chronological order, removes duplicates and keeps deleted messages", async () => {
+    const third = message("message-3", "2030-01-03T10:00:00.000Z", {
+      body: null,
+      deletedAt: "2030-01-03T11:00:00.000Z",
+    });
     const fourth = message("message-4", "2030-01-04T10:00:00.000Z");
     const requestMock = vi
       .fn()
@@ -89,6 +97,11 @@ describe("useMessageHistory", () => {
         "message-4",
       ]),
     );
+    expect(result.current.messages[2]).toMatchObject({
+      id: "message-3",
+      body: null,
+      deletedAt: "2030-01-03T11:00:00.000Z",
+    });
     expect(String(requestMock.mock.calls[1]?.[0])).toContain(
       "before=older-cursor",
     );

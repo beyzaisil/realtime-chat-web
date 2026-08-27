@@ -48,23 +48,79 @@ describe("MessageList", () => {
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
   });
 
-  it("renders loading and message history states", () => {
+  it("renders the loading state", () => {
     vi.mocked(useMessageHistory).mockReturnValue(
       historyResult({ isPending: true }),
     );
-    const view = render(
+    render(
       <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
     );
     expect(screen.getByLabelText("Mesajlar yükleniyor")).toBeInTheDocument();
+  });
 
+  it("renders a normal message", () => {
     vi.mocked(useMessageHistory).mockReturnValue(
       historyResult({ messages: [incoming, own] }),
     );
-    view.rerender(
+    render(
       <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
     );
     expect(screen.getByText("Merhaba")).toBeInTheDocument();
     expect(screen.getByText("Selam")).toBeInTheDocument();
+  });
+
+  it("renders edited information for a non-deleted message", () => {
+    vi.mocked(useMessageHistory).mockReturnValue(
+      historyResult({
+        messages: [
+          {
+            ...incoming,
+            body: "Düzenlenmiş mesaj",
+            editedAt: "2030-01-01T10:05:00.000Z",
+          },
+        ],
+      }),
+    );
+    render(
+      <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Düzenlenmiş mesaj")).toBeInTheDocument();
+    expect(screen.getByText("düzenlendi")).toBeInTheDocument();
+  });
+
+  it("renders a tombstone without exposing the deleted body", () => {
+    vi.mocked(useMessageHistory).mockReturnValue(
+      historyResult({
+        messages: [
+          {
+            ...incoming,
+            body: "Artık gösterilmemesi gereken içerik",
+            deletedAt: "2030-01-01T10:10:00.000Z",
+          },
+        ],
+      }),
+    );
+    render(
+      <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Bu mesaj silindi.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Artık gösterilmemesi gereken içerik"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("düzenlendi")).not.toBeInTheDocument();
+  });
+
+  it("renders a tombstone when the message body is null", () => {
+    vi.mocked(useMessageHistory).mockReturnValue(
+      historyResult({ messages: [{ ...incoming, body: null }] }),
+    );
+    render(
+      <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Bu mesaj silindi.")).toBeInTheDocument();
   });
 
   it("requests the next history cursor page", () => {

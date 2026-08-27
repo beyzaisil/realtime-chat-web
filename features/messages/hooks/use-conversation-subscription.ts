@@ -1,42 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-import { useSocket } from "../../../providers/socket-provider";
+import { useConversationSubscriptionManager } from "../providers/conversation-subscription-provider";
 
 export function useConversationSubscription(
   conversationId: string,
 ): boolean {
-  const { socket, isConnected } = useSocket();
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const { retain, release, subscribedConversationIds } =
+    useConversationSubscriptionManager();
 
   useEffect(() => {
-    setIsSubscribed(false);
-
-    if (!isConnected || conversationId.length === 0) {
+    if (conversationId.length === 0) {
       return;
     }
 
-    let active = true;
-    socket.emit(
-      "conversation:subscribe",
-      { conversationId },
-      (response) => {
-        if (active) {
-          setIsSubscribed(response.ok);
-        }
-      },
-    );
+    retain(conversationId);
 
     return () => {
-      active = false;
-      socket.emit(
-        "conversation:unsubscribe",
-        { conversationId },
-        () => undefined,
-      );
+      release(conversationId);
     };
-  }, [conversationId, isConnected, socket]);
+  }, [conversationId, release, retain]);
 
-  return isSubscribed;
+  return subscribedConversationIds.has(conversationId);
 }

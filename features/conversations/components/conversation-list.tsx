@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { useConversationPresence } from "../../presence/hooks/use-conversation-presence";
 import { UserAvatar } from "../../users/components/user-avatar";
+import { useConversationListRealtime } from "../hooks/use-conversation-list-realtime";
 import { useConversations } from "../hooks/use-conversations";
 import type { ConversationListItem } from "../types";
 
@@ -13,7 +14,11 @@ export function ConversationList() {
   const userIds = query.conversations.map(
     (conversation) => conversation.otherUser.id,
   );
+  const conversationIds = query.conversations.map(
+    (conversation) => conversation.id,
+  );
   const presence = useConversationPresence(userIds);
+  useConversationListRealtime(conversationIds);
 
   if (query.isPending) {
     return <ConversationListSkeleton />;
@@ -133,7 +138,7 @@ function ConversationRow({
           ) : null}
         </span>
         <span className="mt-1 block truncate text-sm text-slate-500">
-          {conversation.lastMessage?.body ?? "Henüz mesaj yok"}
+          {getConversationPreview(conversation.lastMessage)}
         </span>
       </span>
     </Link>
@@ -154,6 +159,20 @@ function ConversationListSkeleton() {
       ))}
     </div>
   );
+}
+
+function getConversationPreview(
+  lastMessage: ConversationListItem["lastMessage"],
+): string {
+  if (lastMessage === null) {
+    return "Henüz mesaj yok";
+  }
+
+  if (lastMessage.deletedAt !== null || lastMessage.body === null) {
+    return "Mesaj silindi.";
+  }
+
+  return lastMessage.body;
 }
 
 function formatConversationTime(value: string): string {
