@@ -1,30 +1,40 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { render, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChatSocket } from "../../../lib/socket/create-socket";
 import type { ConversationSubscriptionAck } from "../../../lib/socket/socket-events";
 import { SocketContext } from "../../../providers/socket-provider";
+import { ConversationSubscriptionProvider } from "../providers/conversation-subscription-provider";
 import { useConversationSubscription } from "./use-conversation-subscription";
 
+function createSocket() {
+  const emit = vi.fn(
+    (
+      event: string,
+      _payload: { conversationId: string },
+      acknowledge: (response: ConversationSubscriptionAck) => void,
+    ) => {
+      acknowledge({ ok: true });
+      return event;
+    },
+  );
+  return {
+    emit,
+    socket: { emit } as unknown as ChatSocket,
+  };
+}
+
 describe("useConversationSubscription", () => {
-  it("subscribes, unsubscribes and subscribes again after reconnect", async () => {
-    const emit = vi.fn(
-      (
-        event: string,
-        _payload: { conversationId: string },
-        acknowledge: (response: ConversationSubscriptionAck) => void,
-      ) => {
-        acknowledge({ ok: true });
-        return event;
-      },
-    );
-    const socket = { emit } as unknown as ChatSocket;
+  it("subscribes again after reconnect", async () => {
+    const { emit, socket } = createSocket();
     let connected = true;
     function Wrapper({ children }: { children: ReactNode }) {
       return (
         <SocketContext.Provider value={{ socket, isConnected: connected }}>
-          {children}
+          <ConversationSubscriptionProvider>
+            {children}
+          </ConversationSubscriptionProvider>
         </SocketContext.Provider>
       );
     }
@@ -40,6 +50,8 @@ describe("useConversationSubscription", () => {
 
     connected = false;
     view.rerender();
+    await waitFor(() => expect(view.result.current).toBe(false));
+
     connected = true;
     view.rerender();
     await waitFor(() => {
@@ -54,7 +66,56 @@ describe("useConversationSubscription", () => {
     expect(
       emit.mock.calls.filter(
         ([event]) => event === "conversation:unsubscribe",
-      ).length,
-    ).toBeGreaterThanOrEqual(2);
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("keeps a shared room until the last consumer releases it", async () => {
+    const { emit, socket } = createSocket();
+    function Subscriber() {
+      useConversationSubscription("conversation-1");
+      return null;
+    }
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <SocketContext.Provider value={{ socket, isConnected: true }}>
+          <ConversationSubscriptionProvider>
+            {children}
+          </ConversationSubscriptionProvider>
+        </SocketContext.Provider>
+      );
+    }
+
+    const view = render(
+      <Wrapper>
+        <Subscriber />
+        <Subscriber />
+      </Wrapper>,
+    );
+    await waitFor(() => {
+      expect(
+        emit.mock.calls.filter(
+          ([event]) => event === "conversation:subscribe",
+        ),
+      ).toHaveLength(1);
+    });
+
+    view.rerender(
+      <Wrapper>
+        <Subscriber />
+      </Wrapper>,
+    );
+    expect(
+      emit.mock.calls.filter(
+        ([event]) => event === "conversation:unsubscribe",
+      ),
+    ).toHaveLength(0);
+
+    view.unmount();
+    expect(
+      emit.mock.calls.filter(
+        ([event]) => event === "conversation:unsubscribe",
+      ),
+    ).toHaveLength(1);
   });
 });

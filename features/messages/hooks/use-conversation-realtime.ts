@@ -3,7 +3,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { conversationKeys } from "../../conversations/hooks/use-conversations";
 import type {
   MessageEventDto,
   ReadUpdatedPayload,
@@ -37,9 +36,6 @@ export function useConversationRealtime(conversationId: string) {
         messageKeys.history(conversationId),
         (current) => upsertMessageInHistory(current, message),
       );
-      void queryClient.invalidateQueries({
-        queryKey: conversationKeys.lists(),
-      });
     };
 
     const handleReadUpdated = (update: ReadUpdatedPayload): void => {

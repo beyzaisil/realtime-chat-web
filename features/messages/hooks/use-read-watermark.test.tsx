@@ -83,6 +83,8 @@ describe("useReadWatermark", () => {
         ...incoming,
         id: "message-2",
         clientMessageId: "client-2",
+        body: null,
+        deletedAt: "2030-01-01T10:05:00.000Z",
       },
     });
     await waitFor(() => expect(requestMock).toHaveBeenCalledTimes(2));

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useState, type ReactNode } from "react";
 
 import { NewConversationDialog } from "../../users/components/new-conversation-dialog";
+import { ConversationSubscriptionProvider } from "../../messages/providers/conversation-subscription-provider";
 import { ConversationList } from "./conversation-list";
 
 export function ChatShell({ children }: { children: ReactNode }) {
@@ -16,8 +17,9 @@ export function ChatShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <main className="flex h-dvh min-h-[540px] overflow-hidden bg-slate-100 p-0 md:p-4">
-      <div className="mx-auto flex h-full w-full max-w-[1500px] overflow-hidden bg-white md:rounded-3xl md:border md:border-slate-200 md:shadow-xl md:shadow-slate-900/5">
+    <ConversationSubscriptionProvider>
+      <main className="flex h-dvh min-h-[540px] overflow-hidden bg-slate-100 p-0 md:p-4">
+        <div className="mx-auto flex h-full w-full max-w-[1500px] overflow-hidden bg-white md:rounded-3xl md:border md:border-slate-200 md:shadow-xl md:shadow-slate-900/5">
         <aside
           className={`${hasSelectedConversation ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col border-r border-slate-200 bg-white md:w-[380px]`}
         >
@@ -44,13 +46,14 @@ export function ChatShell({ children }: { children: ReactNode }) {
         >
           {children}
         </section>
-      </div>
+        </div>
 
-      <NewConversationDialog
-        open={isNewConversationOpen}
-        onClose={closeNewConversation}
-      />
-    </main>
+        <NewConversationDialog
+          open={isNewConversationOpen}
+          onClose={closeNewConversation}
+        />
+      </main>
+    </ConversationSubscriptionProvider>
   );
 }
 

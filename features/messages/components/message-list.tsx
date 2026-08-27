@@ -139,6 +139,8 @@ function MessageBubble({
   message: MessageDto;
   isOwn: boolean;
 }) {
+  const isDeleted = message.deletedAt !== null || message.body === null;
+
   return (
     <article
       className={`max-w-[min(78%,560px)] rounded-2xl px-3.5 py-2.5 shadow-sm ${
@@ -147,16 +149,31 @@ function MessageBubble({
           : "rounded-bl-md border border-slate-200 bg-white text-slate-900"
       }`}
     >
-      <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p>
-      <time
-        dateTime={message.createdAt}
-        className={`mt-1 block text-right text-[10px] ${isOwn ? "text-emerald-100" : "text-slate-400"}`}
+      <p
+        className={`whitespace-pre-wrap break-words text-sm leading-6 ${
+          isDeleted ? "italic opacity-75" : ""
+        }`}
       >
-        {new Intl.DateTimeFormat("tr-TR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date(message.createdAt))}
-      </time>
+        {isDeleted ? "Bu mesaj silindi." : message.body}
+      </p>
+      <span className="mt-1 flex items-center justify-end gap-1.5">
+        {!isDeleted && message.editedAt !== null ? (
+          <span
+            className={`text-[10px] ${isOwn ? "text-emerald-100" : "text-slate-400"}`}
+          >
+            düzenlendi
+          </span>
+        ) : null}
+        <time
+          dateTime={message.createdAt}
+          className={`text-[10px] ${isOwn ? "text-emerald-100" : "text-slate-400"}`}
+        >
+          {new Intl.DateTimeFormat("tr-TR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }).format(new Date(message.createdAt))}
+        </time>
+      </span>
     </article>
   );
 }
