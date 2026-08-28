@@ -72,6 +72,16 @@ export type CreateMessageOperationRequest =
 export type CreateMessageOperationResponse =
   | operations["createMessage"]["responses"][200]["content"]["application/json"]
   | operations["createMessage"]["responses"][201]["content"]["application/json"];
+export type UpdateMessagePath =
+  operations["updateMessage"]["parameters"]["path"];
+export type UpdateMessageOperationRequest =
+  operations["updateMessage"]["requestBody"]["content"]["application/json"];
+export type UpdateMessageOperationResponse =
+  operations["updateMessage"]["responses"][200]["content"]["application/json"];
+export type DeleteMessagePath =
+  operations["deleteMessage"]["parameters"]["path"];
+export type DeleteMessageOperationResponse =
+  operations["deleteMessage"]["responses"][200]["content"]["application/json"];
 export type UpdateReadWatermarkPath =
   operations["updateReadWatermark"]["parameters"]["path"];
 export type UpdateReadWatermarkOperationRequest =

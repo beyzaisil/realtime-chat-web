@@ -2,9 +2,14 @@ import type {
   CreateMessageOperationRequest,
   CreateMessageOperationResponse,
   CreateMessagePath,
+  DeleteMessageOperationResponse,
+  DeleteMessagePath,
   ListMessagesOperationResponse,
   ListMessagesPath,
   ListMessagesQuery,
+  UpdateMessageOperationRequest,
+  UpdateMessageOperationResponse,
+  UpdateMessagePath,
   UpdateReadWatermarkOperationRequest,
   UpdateReadWatermarkOperationResponse,
   UpdateReadWatermarkPath,
@@ -43,6 +48,29 @@ export async function createMessage(
   );
 }
 
+export async function updateMessage(
+  apiClient: ApiClient,
+  conversationId: UpdateMessagePath["conversationId"],
+  messageId: UpdateMessagePath["messageId"],
+  input: UpdateMessageOperationRequest,
+): Promise<UpdateMessageOperationResponse> {
+  return apiClient.request<UpdateMessageOperationResponse>(
+    messageMutationPath(conversationId, messageId),
+    { method: "PATCH", json: input },
+  );
+}
+
+export async function deleteMessage(
+  apiClient: ApiClient,
+  conversationId: DeleteMessagePath["conversationId"],
+  messageId: DeleteMessagePath["messageId"],
+): Promise<DeleteMessageOperationResponse> {
+  return apiClient.request<DeleteMessageOperationResponse>(
+    messageMutationPath(conversationId, messageId),
+    { method: "DELETE" },
+  );
+}
+
 export async function updateReadWatermark(
   apiClient: ApiClient,
   conversationId: UpdateReadWatermarkPath["conversationId"],
@@ -52,4 +80,11 @@ export async function updateReadWatermark(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/read`,
     { method: "PUT", json: input },
   );
+}
+
+function messageMutationPath(
+  conversationId: string,
+  messageId: string,
+): string {
+  return `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`;
 }
