@@ -19,10 +19,7 @@ export type PresenceSubscriptionAck =
   | { ok: true; data: Record<string, PresenceState> }
   | { ok: false; error: { code: "VALIDATION_ERROR" } };
 
-export type MessageEventDto = Omit<Message, "body" | "deletedAt"> & {
-  body: string;
-  deletedAt: null;
-};
+export type MessageEventDto = Message;
 
 export interface ReadUpdatedPayload {
   conversationId: string;
@@ -55,6 +52,8 @@ export interface ChatServerToClientEvents {
   "auth:revoked": () => void;
   "presence:updated": (payload: PresenceUpdatedPayload) => void;
   "message:created": (payload: { message: MessageEventDto }) => void;
+  "message:updated": (payload: { message: MessageEventDto }) => void;
+  "message:deleted": (payload: { message: MessageEventDto }) => void;
   "read:updated": (payload: ReadUpdatedPayload) => void;
   "typing:updated": (payload: TypingUpdatedPayload) => void;
 }
