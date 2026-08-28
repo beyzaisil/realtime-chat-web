@@ -55,6 +55,30 @@ export function upsertMessageInHistory(
   return { ...data, pages };
 }
 
+export function replaceMessageInHistory(
+  data: MessageHistoryData | undefined,
+  message: MessageDto,
+): MessageHistoryData | undefined {
+  if (data === undefined) {
+    return undefined;
+  }
+
+  let found = false;
+  const pages = data.pages.map((page) => ({
+    ...page,
+    items: page.items.map((item) => {
+      if (item.id !== message.id) {
+        return item;
+      }
+
+      found = true;
+      return message;
+    }),
+  }));
+
+  return found ? { ...data, pages } : data;
+}
+
 function compareMessages(left: MessageDto, right: MessageDto): number {
   const dateOrder = left.createdAt.localeCompare(right.createdAt);
   return dateOrder === 0 ? left.id.localeCompare(right.id) : dateOrder;
