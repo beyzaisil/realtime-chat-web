@@ -1,0 +1,4 @@
+contracts/openapi.yaml text eol=lf
+lib/api/generated/*.ts text eol=lf
+scripts/*openapi* text eol=lf
+scripts/text-file.mjs text eol=lf

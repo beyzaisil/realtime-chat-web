@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { renderOpenApiTypes } from "./openapi-codegen.mjs";
+import { normalizeLineEndings } from "./text-file.mjs";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const sourcePath = resolve(
@@ -18,7 +19,7 @@ try {
     readFile(generatedPath, "utf8"),
   ]);
 
-  if (actual !== expected) {
+  if (normalizeLineEndings(actual) !== normalizeLineEndings(expected)) {
     console.error(
       "Generated OpenAPI types are stale. Run npm run contract:generate.",
     );

@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const contractPath = resolve(projectRoot, "contracts/openapi.yaml");
+const syncScript = resolve(projectRoot, "scripts/sync-openapi.mjs");
 const generateScript = resolve(projectRoot, "scripts/generate-openapi.mjs");
 const checkScript = resolve(projectRoot, "scripts/check-openapi.mjs");
 const temporaryDirectories: string[] = [];
@@ -39,6 +40,30 @@ afterEach(async () => {
 });
 
 describe("OpenAPI contract tooling", () => {
+  it("normalizes a CRLF contract snapshot to LF and keeps it unchanged", async () => {
+    const directory = await createTemporaryDirectory();
+    const sourcePath = join(directory, "source-openapi.yaml");
+    const snapshotPath = join(directory, "snapshot-openapi.yaml");
+    const contract = await readFile(contractPath, "utf8");
+    const crlfContract = contract.replace(/\r?\n/g, "\r\n");
+    await writeFile(sourcePath, crlfContract, "utf8");
+
+    const firstResult = runScript(syncScript, sourcePath, snapshotPath);
+    const firstSnapshot = await readFile(snapshotPath, "utf8");
+    expect(firstResult.status).toBe(0);
+    expect(firstSnapshot).not.toContain("\r");
+
+    const fixedTime = new Date("2020-01-01T00:00:00.000Z");
+    await utimes(snapshotPath, fixedTime, fixedTime);
+    const before = await stat(snapshotPath);
+    const secondResult = runScript(syncScript, sourcePath, snapshotPath);
+    const after = await stat(snapshotPath);
+
+    expect(secondResult.status).toBe(0);
+    expect(secondResult.stdout).toContain("unchanged");
+    expect(after.mtimeMs).toBe(before.mtimeMs);
+  });
+
   it("generates TypeScript types from the contract snapshot", async () => {
     const directory = await createTemporaryDirectory();
     const generatedPath = join(directory, "schema.ts");
@@ -68,6 +93,31 @@ describe("OpenAPI contract tooling", () => {
     expect(secondResult.status).toBe(0);
     expect(secondResult.stdout).toContain("unchanged");
     expect(after.mtimeMs).toBe(before.mtimeMs);
+  });
+
+  it("accepts CRLF generated types when their content matches", async () => {
+    const directory = await createTemporaryDirectory();
+    const generatedPath = join(directory, "schema.ts");
+    const generateResult = runScript(
+      generateScript,
+      contractPath,
+      generatedPath,
+    );
+    expect(generateResult.status).toBe(0);
+
+    const generated = await readFile(generatedPath, "utf8");
+    await writeFile(
+      generatedPath,
+      generated.replace(/\r?\n/g, "\r\n"),
+      "utf8",
+    );
+
+    const checkResult = runScript(checkScript, contractPath, generatedPath);
+
+    expect(checkResult.status).toBe(0);
+    expect(checkResult.stdout).toContain(
+      "Generated OpenAPI types match the contract snapshot",
+    );
   });
 
   it("fails contract:check when the contract changes without regeneration", async () => {
