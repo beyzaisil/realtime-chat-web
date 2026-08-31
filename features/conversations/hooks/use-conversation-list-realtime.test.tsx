@@ -26,15 +26,17 @@ const message: MessageEventDto = {
 };
 
 describe("useConversationListRealtime", () => {
-  it("subscribes list rooms and invalidates the list for an incoming message", async () => {
-    let messageHandler:
-      | ((payload: { message: MessageEventDto }) => void)
-      | null = null;
+  it("invalidates subscribed conversation rows for every message lifecycle event", async () => {
+    const messageHandlers = new Map<
+      string,
+      (payload: { message: MessageEventDto }) => void
+    >();
     const on = vi.fn((event: string, handler: unknown) => {
-      if (event === "message:created") {
-        messageHandler = handler as (payload: {
-          message: MessageEventDto;
-        }) => void;
+      if (event.startsWith("message:")) {
+        messageHandlers.set(
+          event,
+          handler as (payload: { message: MessageEventDto }) => void,
+        );
       }
     });
     const off = vi.fn();
@@ -79,21 +81,40 @@ describe("useConversationListRealtime", () => {
       );
     });
 
-    act(() => {
-      messageHandler?.({ message });
-    });
-    expect(invalidateQueries).toHaveBeenCalledWith({
+    for (const event of [
+      "message:created",
+      "message:updated",
+      "message:deleted",
+    ]) {
+      act(() => {
+        messageHandlers.get(event)?.({ message });
+      });
+    }
+    expect(invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(invalidateQueries).toHaveBeenLastCalledWith({
       queryKey: conversationKeys.lists(),
     });
 
     act(() => {
-      messageHandler?.({
+      messageHandlers.get("message:deleted")?.({
         message: { ...message, conversationId: "conversation-other" },
       });
     });
-    expect(invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(invalidateQueries).toHaveBeenCalledTimes(3);
 
     view.unmount();
-    expect(off).toHaveBeenCalledWith("message:created", expect.any(Function));
+    for (const event of [
+      "message:created",
+      "message:updated",
+      "message:deleted",
+    ]) {
+      expect(off).toHaveBeenCalledWith(event, messageHandlers.get(event));
+    }
+    expect(messageHandlers.get("message:created")).toBe(
+      messageHandlers.get("message:updated"),
+    );
+    expect(messageHandlers.get("message:updated")).toBe(
+      messageHandlers.get("message:deleted"),
+    );
   });
 });

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { MessageDto } from "../types";
 import { useMessageHistory } from "../hooks/use-message-history";
+import { MessageActions } from "./message-actions";
 
 const BOTTOM_THRESHOLD_PX = 96;
 
@@ -122,7 +123,7 @@ export function MessageList({
             >
               <MessageBubble
                 message={message}
-                isOwn={message.senderId === currentUserId}
+                currentUserId={currentUserId}
               />
             </li>
           ))}
@@ -134,29 +135,35 @@ export function MessageList({
 
 function MessageBubble({
   message,
-  isOwn,
+  currentUserId,
 }: {
   message: MessageDto;
-  isOwn: boolean;
+  currentUserId: string;
 }) {
+  const isOwn = message.senderId === currentUserId;
   const isDeleted = message.deletedAt !== null || message.body === null;
+  const [isEditing, setIsEditing] = useState(false);
 
   return (
     <article
-      className={`max-w-[min(78%,560px)] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+      className={`group relative rounded-2xl px-3.5 py-2.5 shadow-sm transition-[width,max-width] ${
+        isEditing ? "w-full max-w-[420px]" : "max-w-[min(78%,560px)]"
+      } ${
         isOwn
           ? "rounded-br-md bg-emerald-700 text-white"
           : "rounded-bl-md border border-slate-200 bg-white text-slate-900"
       }`}
     >
-      <p
-        className={`whitespace-pre-wrap break-words text-sm leading-6 ${
-          isDeleted ? "italic opacity-75" : ""
-        }`}
-      >
-        {isDeleted ? "Bu mesaj silindi." : message.body}
-      </p>
-      <span className="mt-1 flex items-center justify-end gap-1.5">
+      {!isEditing ? (
+        <p
+          className={`whitespace-pre-wrap break-words text-sm leading-6 ${
+            isDeleted ? "italic opacity-75" : isOwn ? "pr-9" : ""
+          }`}
+        >
+          {isDeleted ? "Bu mesaj silindi." : message.body}
+        </p>
+      ) : null}
+      {!isEditing ? <span className="mt-1 flex items-center justify-end gap-1.5">
         {!isDeleted && message.editedAt !== null ? (
           <span
             className={`text-[10px] ${isOwn ? "text-emerald-100" : "text-slate-400"}`}
@@ -173,7 +180,12 @@ function MessageBubble({
             minute: "2-digit",
           }).format(new Date(message.createdAt))}
         </time>
-      </span>
+      </span> : null}
+      <MessageActions
+        message={message}
+        currentUserId={currentUserId}
+        onEditingChange={setIsEditing}
+      />
     </article>
   );
 }

@@ -27,7 +27,7 @@ export function useConversationListRealtime(
   useConversationSubscriptions(conversationIds);
 
   useEffect(() => {
-    const handleMessageCreated = ({
+    const handleMessageLifecycle = ({
       message,
     }: {
       message: MessageEventDto;
@@ -41,9 +41,13 @@ export function useConversationListRealtime(
       });
     };
 
-    socket.on("message:created", handleMessageCreated);
+    socket.on("message:created", handleMessageLifecycle);
+    socket.on("message:updated", handleMessageLifecycle);
+    socket.on("message:deleted", handleMessageLifecycle);
     return () => {
-      socket.off("message:created", handleMessageCreated);
+      socket.off("message:created", handleMessageLifecycle);
+      socket.off("message:updated", handleMessageLifecycle);
+      socket.off("message:deleted", handleMessageLifecycle);
     };
   }, [queryClient, socket, subscribedConversationIds]);
 }
