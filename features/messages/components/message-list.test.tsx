@@ -6,6 +6,7 @@ import type { MessageDto } from "../types";
 import { MessageList } from "./message-list";
 
 vi.mock("../hooks/use-message-history");
+vi.mock("./message-actions", () => ({ MessageActions: () => null }));
 
 const incoming: MessageDto = {
   id: "message-1",
