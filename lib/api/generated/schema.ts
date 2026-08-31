@@ -58,6 +58,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mevcut parolayı değiştirme
+         * @description Mevcut parolayı doğrular, yeni parolayı register ile aynı kurala göre
+         *     kaydeder ve mevcut session dışındaki tüm session'ları iptal eder.
+         *     Doğrulanmış kullanıcı başına 15 dakikada 10 istekle sınırlıdır.
+         */
+        patch: operations["changePassword"];
+        trace?: never;
+    };
     "/api/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -98,6 +120,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aktif session'ları listeleme */
+        get: operations["listAuthSessions"];
+        put?: never;
+        post?: never;
+        /** Mevcut session dışındaki tüm session'ları iptal etme */
+        delete: operations["revokeOtherAuthSessions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Belirli bir session'ı iptal etme
+         * @description Session yalnızca doğrulanmış kullanıcıya aitse iptal edilir. Hedef mevcut
+         *     session ise refresh cookie de temizlenir. Başkasına ait veya zaten iptal
+         *     edilmiş bir kimlik bilgi sızdırmamak için yine 204 döner.
+         */
+        delete: operations["revokeAuthSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations": {
         parameters: {
             query?: never;
@@ -105,7 +167,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Doğrudan konuşmaları listeleme */
+        /** Aktif DIRECT ve GROUP konuşmalarını listeleme */
         get: operations["listConversations"];
         put?: never;
         post?: never;
@@ -122,11 +184,69 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Üyesi olunan doğrudan konuşmayı alma */
+        /** Aktif üyesi olunan DIRECT veya GROUP konuşmasını alma */
         get: operations["getConversation"];
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a GROUP title */
+        patch: operations["updateGroupTitle"];
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add or reactivate a GROUP member */
+        post: operations["addGroupMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/members/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+                /** @example 22222222-2222-4222-8222-222222222222 */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a GROUP member */
+        delete: operations["removeGroupMember"];
+        options?: never;
+        head?: never;
+        /** Change a member between MEMBER and ADMIN */
+        patch: operations["updateGroupMemberRole"];
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/members/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Leave a GROUP */
+        delete: operations["leaveGroupConversation"];
         options?: never;
         head?: never;
         patch?: never;
@@ -183,6 +303,23 @@ export interface paths {
         patch: operations["updateMessage"];
         trace?: never;
     };
+    "/api/v1/conversations/{conversationId}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Transfer GROUP ownership to an active member */
+        put: operations["transferGroupOwnership"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversationId}/read": {
         parameters: {
             query?: never;
@@ -211,6 +348,23 @@ export interface paths {
         put?: never;
         /** Doğrudan konuşmayı oluşturma veya var olanı döndürme */
         post: operations["createDirectConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a group conversation */
+        post: operations["createGroupConversation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -271,6 +425,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mevcut kullanıcının profilini güncelleme
+         * @description `username` ve/veya `displayName` gönderilmelidir.
+         */
+        patch: operations["updateCurrentUser"];
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Mevcut avatar referansını kaldırma
+         * @description Kullanıcının `avatarUrl` ve güncel media ilişkisini hemen temizler.
+         *     Object storage nesnesi istek içinde silinmez; periyodik temizlik tarafından kaldırılır.
+         */
+        delete: operations["deleteCurrentUserAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Avatar için doğrudan object-storage yükleme adresi oluşturma
+         * @description İstemci dosyayı API gövdesine göndermez. Bu uçtan alınan imzalı URL'ye
+         *     dönen `Content-Type` başlığıyla `PUT` yapar, ardından complete ucunu çağırır.
+         *     Upload intent ve complete aynı kullanıcı bazlı `20/15 dakika` kotasını tüketir.
+         *     JPEG, PNG ve WebP kabul edilir; HEIC/HEIF, SVG, GIF ve video kabul edilmez.
+         */
+        post: operations["createAvatarUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/avatar/uploads/{uploadId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Yüklenen avatarı doğrulama, dönüştürme ve profile bağlama
+         * @description Private `incoming/` nesnesini okur; gerçek MIME, byte boyutu ve görseli
+         *     doğrular. En fazla 5 MiB ve 4096×4096 kaynak kabul edilir. Sonuç metadata'sı
+         *     temizlenmiş sabit 512×512 WebP olarak public `public/` prefix'ine yazılır.
+         *     Aynı tamamlanmış güncel upload için retry idempotenttir.
+         */
+        post: operations["completeAvatarUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -279,13 +520,69 @@ export interface components {
             accessToken: string;
             user: components["schemas"]["PublicUser"];
         };
+        AuthSession: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            isCurrent: boolean;
+            /** Format: date-time */
+            lastUsedAt: string;
+            /** @description Session oluşturulurken gelen User-Agent; eski session'larda null olabilir. */
+            userAgent: string | null;
+        };
+        AuthSessionListResponse: {
+            items: components["schemas"]["AuthSession"][];
+        };
+        AvatarUploadIntent: {
+            upload: {
+                /** Format: date-time */
+                expiresAt: string;
+                /** @description PUT sırasında aynen gönderilmelidir; Content-Type imzaya dahildir. */
+                headers: {
+                    [key: string]: string;
+                };
+                /** @constant */
+                method: "PUT";
+                /**
+                 * Format: uri
+                 * @description Private incoming nesnesine ait, on dakika geçerli imzalı URL.
+                 */
+                url: string;
+            };
+            /** Format: uuid */
+            uploadId: string;
+        };
+        ChangePasswordRequest: {
+            /** Format: password */
+            currentPassword: string;
+            /** Format: password */
+            newPassword: string;
+        };
+        Conversation: components["schemas"]["DirectConversation"] | components["schemas"]["GroupConversation"];
         ConversationListResponse: {
             items: components["schemas"]["ListedConversation"][];
             nextCursor: string | null;
         };
+        CreateAvatarUploadRequest: {
+            /** @description Kaynak nesnenin byte boyutu; complete aşamasında kesin doğrulanır. */
+            contentLength: number;
+            /**
+             * @description İmzaya bağlanacak kaynak MIME türü.
+             * @enum {string}
+             */
+            contentType: "image/jpeg" | "image/png" | "image/webp";
+        };
         CreateDirectConversationRequest: {
             /** Format: uuid */
             userId: string;
+        };
+        CreateGroupConversationRequest: {
+            title: string;
+            /** @description Creator is not included; creator plus these users must total at least 3. */
+            userIds: string[];
         };
         CreateMessageRequest: {
             /** Format: uuid */
@@ -307,8 +604,11 @@ export interface components {
             id: string;
             otherUser: components["schemas"]["PublicPeerUser"];
             title: string | null;
-            /** @constant */
-            type: "DIRECT";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "DirectConversation";
         };
         ErrorResponse: {
             error: {
@@ -321,6 +621,28 @@ export interface components {
                 message: string;
                 requestId: string;
             };
+        };
+        GroupConversation: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            members: components["schemas"]["GroupMember"][];
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "GroupConversation";
+        };
+        GroupMember: {
+            /** Format: date-time */
+            joinedAt: string;
+            /** @enum {string} */
+            role: "MEMBER" | "ADMIN" | "OWNER";
+            user: components["schemas"]["PublicPeerUser"];
+            /** Format: uuid */
+            userId: string;
         };
         HealthResponse: {
             /** @constant */
@@ -338,7 +660,8 @@ export interface components {
             /** Format: uuid */
             senderId: string;
         };
-        ListedConversation: {
+        ListedConversation: components["schemas"]["ListedDirectConversation"] | components["schemas"]["ListedGroupConversation"];
+        ListedDirectConversation: {
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
@@ -348,8 +671,28 @@ export interface components {
             lastMessageAt: string | null;
             otherUser: components["schemas"]["PublicPeerUser"];
             title: string | null;
-            /** @constant */
-            type: "DIRECT";
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ListedDirectConversation";
+            unreadCount: number;
+        };
+        ListedGroupConversation: {
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            lastMessage: components["schemas"]["LastMessage"] | null;
+            /** Format: date-time */
+            lastMessageAt: string | null;
+            members: components["schemas"]["GroupMember"][];
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ListedGroupConversation";
             unreadCount: number;
         };
         LoginRequest: {
@@ -435,6 +778,19 @@ export interface components {
             /** @description Trim edilir. */
             username: string;
         };
+        UpdateCurrentUserRequest: {
+            /** @description Trim edilir. */
+            displayName?: string;
+            /** @description Trim edilir ve tekil olmalıdır. */
+            username?: string;
+        };
+        UpdateGroupMemberRoleRequest: {
+            /** @enum {string} */
+            role: "MEMBER" | "ADMIN";
+        };
+        UpdateGroupTitleRequest: {
+            title: string;
+        };
         UpdateMessageRequest: {
             content: {
                 /** @description Karşılaştırılmadan ve kaydedilmeden önce trim edilir. */
@@ -447,6 +803,10 @@ export interface components {
             /** Format: uuid */
             throughMessageId: string;
         };
+        UserIdRequest: {
+            /** Format: uuid */
+            userId: string;
+        };
         UserSearchResponse: {
             items: components["schemas"]["PublicPeerUser"][];
             nextCursor: string | null;
@@ -457,11 +817,38 @@ export interface components {
         };
     };
     responses: {
+        /** @description Object storage geçici olarak kullanılamıyor */
+        AvatarStorageUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "AVATAR_STORAGE_UNAVAILABLE",
+                 *         "message": "Avatar storage is temporarily unavailable",
+                 *         "requestId": "77777777-7777-4777-8777-777777777777"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Bearer header yok/bozuk veya access token/DB oturumu geçersiz */
         BearerUnauthorized: {
             headers: {
                 /** @description Bearer challenge */
                 "WWW-Authenticate"?: "Bearer realm=\"chat-api\"";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Membership, capacity, OWNER-target, or last-OWNER conflict */
+        ConversationConflict: {
+            headers: {
                 [name: string]: unknown;
             };
             content: {
@@ -497,6 +884,24 @@ export interface components {
                  *       "error": {
                  *         "code": "CSRF_VALIDATION_FAILED",
                  *         "message": "The request origin is not allowed",
+                 *         "requestId": "77777777-7777-4777-8777-777777777777"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Active member role does not permit the operation */
+        InsufficientRole: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "INSUFFICIENT_ROLE",
+                 *         "message": "Your role does not permit this action",
                  *         "requestId": "77777777-7777-4777-8777-777777777777"
                  *       }
                  *     }
@@ -600,6 +1005,8 @@ export interface components {
          * @example https://chat.example.com
          */
         ProductionOrigin: string;
+        /** @example 22222222-2222-4222-8222-222222222222 */
+        UserId: string;
     };
     requestBodies: never;
     headers: {
@@ -761,6 +1168,51 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
+                 *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
+                 *     Development/test ortamında middleware bu kontrolü atlar.
+                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
+                 *     `src/modules/auth/auth.middleware.ts`.
+                 * @example https://chat.example.com
+                 */
+                Origin?: components["parameters"]["ProductionOrigin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Parola değiştirildi ve diğer session'lar iptal edildi; gövde yok */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            /** @description Bearer token geçersiz veya mevcut parola yanlış */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            403: components["responses"]["CsrfError"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     refreshAccessToken: {
         parameters: {
             query?: never;
@@ -880,6 +1332,94 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    listAuthSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Süresi dolmamış ve iptal edilmemiş session'lar */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSessionListResponse"];
+                };
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    revokeOtherAuthSessions: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
+                 *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
+                 *     Development/test ortamında middleware bu kontrolü atlar.
+                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
+                 *     `src/modules/auth/auth.middleware.ts`.
+                 * @example https://chat.example.com
+                 */
+                Origin?: components["parameters"]["ProductionOrigin"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Diğer session'lar iptal edildi; gövde yok */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["CsrfError"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    revokeAuthSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
+                 *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
+                 *     Development/test ortamında middleware bu kontrolü atlar.
+                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
+                 *     `src/modules/auth/auth.middleware.ts`.
+                 * @example https://chat.example.com
+                 */
+                Origin?: components["parameters"]["ProductionOrigin"];
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description İşlem tamamlandı; gövde yok */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["CsrfError"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     listConversations: {
         parameters: {
             query?: {
@@ -971,13 +1511,171 @@ export interface operations {
                      *       }
                      *     }
                      */
-                    "application/json": components["schemas"]["DirectConversation"];
+                    "application/json": components["schemas"]["Conversation"];
                 };
             };
             400: components["responses"]["ValidationError"];
             401: components["responses"]["BearerUnauthorized"];
             404: components["responses"]["ConversationNotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    updateGroupTitle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGroupTitleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupConversation"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["InsufficientRole"];
+            404: components["responses"]["ConversationNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    addGroupMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserIdRequest"];
+            };
+        };
+        responses: {
+            /** @description Active MEMBER */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupMember"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["InsufficientRole"];
+            404: components["responses"]["ConversationNotFound"];
+            409: components["responses"]["ConversationConflict"];
+        };
+    };
+    removeGroupMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+                /** @example 22222222-2222-4222-8222-222222222222 */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership deactivated and all target sockets removed from the room */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Target is the caller; use /members/me */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["InsufficientRole"];
+            404: components["responses"]["ConversationNotFound"];
+            409: components["responses"]["ConversationConflict"];
+        };
+    };
+    updateGroupMemberRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+                /** @example 22222222-2222-4222-8222-222222222222 */
+                userId: components["parameters"]["UserId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGroupMemberRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated member */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupMember"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["InsufficientRole"];
+            404: components["responses"]["ConversationNotFound"];
+            409: components["responses"]["ConversationConflict"];
+        };
+    };
+    leaveGroupConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership deactivated with leftAt */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            404: components["responses"]["ConversationNotFound"];
+            409: components["responses"]["ConversationConflict"];
         };
     };
     listMessages: {
@@ -1207,6 +1905,38 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    transferGroupOwnership: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserIdRequest"];
+            };
+        };
+        responses: {
+            /** @description Previous OWNER is ADMIN and target is OWNER */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupConversation"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            403: components["responses"]["InsufficientRole"];
+            404: components["responses"]["ConversationNotFound"];
+            409: components["responses"]["ConversationConflict"];
+        };
+    };
     updateReadWatermark: {
         parameters: {
             query?: never;
@@ -1356,6 +2086,51 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    createGroupConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "title": "Product team",
+                 *       "userIds": [
+                 *         "22222222-2222-4222-8222-222222222222",
+                 *         "33333333-3333-4333-8333-333333333333"
+                 *       ]
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateGroupConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Group created; caller is OWNER and requested users are MEMBER */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupConversation"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            /** @description At least one requested user is unavailable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
     getHealth: {
         parameters: {
             query?: never;
@@ -1468,6 +2243,192 @@ export interface operations {
             401: components["responses"]["BearerUnauthorized"];
             429: components["responses"]["RateLimited"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    updateCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCurrentUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Güncellenmiş kullanıcı profili */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            /** @description Kullanıcı adı zaten kullanımda */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "USERNAME_ALREADY_IN_USE",
+                     *         "message": "The username is already in use",
+                     *         "requestId": "77777777-7777-4777-8777-777777777777"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deleteCurrentUserAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avatarı kaldırılmış güncel kullanıcı */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    createAvatarUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "contentType": "image/jpeg",
+                 *       "contentLength": 245760
+                 *     }
+                 */
+                "application/json": components["schemas"]["CreateAvatarUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description On dakika geçerli, Content-Type'a bağlı imzalı PUT adresi */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarUploadIntent"];
+                };
+            };
+            /** @description Gövde doğrulama hatası veya desteklenmeyen format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["AvatarStorageUnavailable"];
+        };
+    };
+    completeAvatarUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avatar profile bağlandı; güncel kullanıcı döndü */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            /** @description Upload bulunamadı veya bu kullanıcıya ait değil */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AVATAR_UPLOAD_NOT_FOUND",
+                     *         "message": "The avatar upload was not found",
+                     *         "requestId": "77777777-7777-4777-8777-777777777777"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Upload süresi doldu, henüz object storage'a ulaşmadı veya tamamlanamaz durumda */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Nesne bildirilen dosyayla eşleşmedi veya güvenli biçimde çözümlenemedi */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_AVATAR_FILE",
+                     *         "message": "The uploaded file is not a valid supported avatar image",
+                     *         "requestId": "77777777-7777-4777-8777-777777777777"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            500: components["responses"]["InternalError"];
+            503: components["responses"]["AvatarStorageUnavailable"];
         };
     };
 }
