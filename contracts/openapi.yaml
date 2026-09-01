@@ -12,10 +12,12 @@ info:
     - Refresh token, adı `chat_refresh_token` olan `HttpOnly`, `SameSite=Lax`,
       `Path=/api/v1/auth` cookie'sinde tutulur; production ortamında ayrıca
       `Secure` niteliği kullanılır.
-    - Production ortamında `/auth/refresh` ve `/auth/logout` isteklerinin
+    - Production ortamında `/auth/refresh`, `/auth/logout`, `/auth/password` ve
+      session silme isteklerinin
       `Origin` başlığı `FRONTEND_ORIGIN` ile bire bir aynı olmalıdır. Diğer
       ortamlarda bu Origin kontrolü uygulanmaz.
-    - Register, login, refresh ve me cevapları `Cache-Control: no-store` taşır.
+    - Register, login, refresh, me, session listesi ve profil güncelleme
+      cevapları `Cache-Control: no-store` taşır.
 
     Güvenlik response header'ları tüm HTTP cevaplarında Helmet 8.3.0'ın
     varsayılan politikalarıyla üretilir. Bunlar arasında
@@ -34,7 +36,9 @@ info:
     Rate limit politikaları süreç içindeki ayrı bellek depolarında tutulur ve
     süreç yeniden başladığında sıfırlanır. Login `10/15 dakika/IP`, register
     `5/60 dakika/IP`, refresh `30/5 dakika/IP`, kullanıcı arama
-    `60/dakika/kullanıcı` ve mesaj oluşturma `60/dakika/kullanıcı` sınırındadır.
+    `60/dakika/kullanıcı`, parola değiştirme `10/15 dakika/kullanıcı` ve mesaj
+    oluşturma `60/dakika/kullanıcı`; avatar upload intent + complete işlemleri
+    ortak `20/15 dakika/kullanıcı` sınırındadır.
     IP kapsamı Express `request.ip` değeridir; uygulama `trust proxy` açmadığı
     için doğrudan TCP eşini temsil eder. Paylaşımlı NAT/CGNAT kullanıcıları aynı
     login/register/refresh kotasını tüketebilir. Limit aşımında standart hata
@@ -51,9 +55,9 @@ tags:
   - name: Health
     description: Liveness ve PostgreSQL readiness kontrolleri.
   - name: Auth
-    description: Kayıt, oturum, token rotasyonu ve mevcut kullanıcı.
+    description: Kayıt, parola, session yönetimi, token rotasyonu ve mevcut kullanıcı.
   - name: Users
-    description: Aktif kullanıcı arama.
+    description: Profil güncelleme ve aktif kullanıcı arama.
   - name: Conversations
     description: Doğrudan konuşma oluşturma, listeleme ve detay.
   - name: Messages
@@ -373,6 +377,363 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/v1/auth/password:
+    patch:
+      tags: [Auth]
+      summary: Mevcut parolayı değiştirme
+      operationId: changePassword
+      description: |
+        Mevcut parolayı doğrular, yeni parolayı register ile aynı kurala göre
+        kaydeder ve mevcut session dışındaki tüm session'ları iptal eder.
+        Doğrulanmış kullanıcı başına 15 dakikada 10 istekle sınırlıdır.
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/http/middleware/rate-limit.ts
+        - src/modules/auth/auth.routes.ts
+        - src/modules/auth/auth.schema.ts
+        - src/modules/auth/auth.controller.ts
+        - src/modules/auth/auth.service.ts
+      parameters:
+        - $ref: "#/components/parameters/ProductionOrigin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "204":
+          description: Parola değiştirildi ve diğer session'lar iptal edildi; gövde yok
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          description: Bearer token geçersiz veya mevcut parola yanlış
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/CsrfError"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/sessions:
+    get:
+      tags: [Auth]
+      summary: Aktif session'ları listeleme
+      operationId: listAuthSessions
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/auth/auth.routes.ts
+        - src/modules/auth/auth.controller.ts
+        - src/modules/auth/auth.service.ts
+        - src/modules/auth/sessions/auth-session.repository.ts
+      responses:
+        "200":
+          description: Süresi dolmamış ve iptal edilmemiş session'lar
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSessionListResponse"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Auth]
+      summary: Mevcut session dışındaki tüm session'ları iptal etme
+      operationId: revokeOtherAuthSessions
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/auth/auth.routes.ts
+        - src/modules/auth/auth.controller.ts
+        - src/modules/auth/auth.service.ts
+        - src/modules/auth/sessions/auth-session.repository.ts
+      parameters:
+        - $ref: "#/components/parameters/ProductionOrigin"
+      responses:
+        "204":
+          description: Diğer session'lar iptal edildi; gövde yok
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/CsrfError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/auth/sessions/{sessionId}:
+    delete:
+      tags: [Auth]
+      summary: Belirli bir session'ı iptal etme
+      operationId: revokeAuthSession
+      description: |
+        Session yalnızca doğrulanmış kullanıcıya aitse iptal edilir. Hedef mevcut
+        session ise refresh cookie de temizlenir. Başkasına ait veya zaten iptal
+        edilmiş bir kimlik bilgi sızdırmamak için yine 204 döner.
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/auth/auth.routes.ts
+        - src/modules/auth/auth.controller.ts
+        - src/modules/auth/auth.service.ts
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/ProductionOrigin"
+      responses:
+        "204":
+          description: İşlem tamamlandı; gövde yok
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/CsrfError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/users/me:
+    patch:
+      tags: [Users]
+      summary: Mevcut kullanıcının profilini güncelleme
+      operationId: updateCurrentUser
+      description: "`username` ve/veya `displayName` gönderilmelidir."
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/users/users.routes.ts
+        - src/modules/users/users.schema.ts
+        - src/modules/users/users.controller.ts
+        - src/modules/users/users.service.ts
+        - src/modules/users/users.repository.ts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCurrentUserRequest"
+      responses:
+        "200":
+          description: Güncellenmiş kullanıcı profili
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "409":
+          description: Kullanıcı adı zaten kullanımda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: USERNAME_ALREADY_IN_USE
+                  message: The username is already in use
+                  requestId: 77777777-7777-4777-8777-777777777777
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/users/me/avatar/uploads:
+    post:
+      tags: [Users]
+      summary: Avatar için doğrudan object-storage yükleme adresi oluşturma
+      operationId: createAvatarUpload
+      description: |
+        İstemci dosyayı API gövdesine göndermez. Bu uçtan alınan imzalı URL'ye
+        dönen `Content-Type` başlığıyla `PUT` yapar, ardından complete ucunu çağırır.
+        Upload intent ve complete aynı kullanıcı bazlı `20/15 dakika` kotasını tüketir.
+        JPEG, PNG ve WebP kabul edilir; HEIC/HEIF, SVG, GIF ve video kabul edilmez.
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/users/users.routes.ts
+        - src/modules/media/avatar.schema.ts
+        - src/modules/media/avatar.controller.ts
+        - src/modules/media/avatar.service.ts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAvatarUploadRequest"
+            example:
+              contentType: image/jpeg
+              contentLength: 245760
+      responses:
+        "201":
+          description: On dakika geçerli, Content-Type'a bağlı imzalı PUT adresi
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AvatarUploadIntent"
+        "400":
+          description: Gövde doğrulama hatası veya desteklenmeyen format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                validation:
+                  $ref: "#/components/examples/ValidationErrorExample"
+                unsupportedFormat:
+                  value:
+                    error:
+                      code: UNSUPPORTED_AVATAR_FORMAT
+                      message: Avatar format is not supported; use JPEG, PNG, or WebP
+                      requestId: 77777777-7777-4777-8777-777777777777
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/AvatarStorageUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/users/me/avatar/uploads/{uploadId}/complete:
+    post:
+      tags: [Users]
+      summary: Yüklenen avatarı doğrulama, dönüştürme ve profile bağlama
+      operationId: completeAvatarUpload
+      description: |
+        Private `incoming/` nesnesini okur; gerçek MIME, byte boyutu ve görseli
+        doğrular. En fazla 5 MiB ve 4096×4096 kaynak kabul edilir. Sonuç metadata'sı
+        temizlenmiş sabit 512×512 WebP olarak public `public/` prefix'ine yazılır.
+        Aynı tamamlanmış güncel upload için retry idempotenttir.
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/users/users.routes.ts
+        - src/modules/media/avatar.controller.ts
+        - src/modules/media/avatar.service.ts
+        - src/modules/media/avatar-image.processor.ts
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Avatar profile bağlandı; güncel kullanıcı döndü
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "404":
+          description: Upload bulunamadı veya bu kullanıcıya ait değil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: AVATAR_UPLOAD_NOT_FOUND
+                  message: The avatar upload was not found
+                  requestId: 77777777-7777-4777-8777-777777777777
+        "409":
+          description: Upload süresi doldu, henüz object storage'a ulaşmadı veya tamamlanamaz durumda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                incomplete:
+                  value:
+                    error:
+                      code: AVATAR_UPLOAD_INCOMPLETE
+                      message: The avatar upload has not completed
+                      requestId: 77777777-7777-4777-8777-777777777777
+                expired:
+                  value:
+                    error:
+                      code: AVATAR_UPLOAD_EXPIRED
+                      message: The avatar upload has expired
+                      requestId: 77777777-7777-4777-8777-777777777777
+                conflict:
+                  value:
+                    error:
+                      code: AVATAR_UPLOAD_CONFLICT
+                      message: The avatar upload cannot be completed
+                      requestId: 77777777-7777-4777-8777-777777777777
+        "422":
+          description: Nesne bildirilen dosyayla eşleşmedi veya güvenli biçimde çözümlenemedi
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error:
+                  code: INVALID_AVATAR_FILE
+                  message: The uploaded file is not a valid supported avatar image
+                  requestId: 77777777-7777-4777-8777-777777777777
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/AvatarStorageUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/users/me/avatar:
+    delete:
+      tags: [Users]
+      summary: Mevcut avatar referansını kaldırma
+      operationId: deleteCurrentUserAvatar
+      description: |
+        Kullanıcının `avatarUrl` ve güncel media ilişkisini hemen temizler.
+        Object storage nesnesi istek içinde silinmez; periyodik temizlik tarafından kaldırılır.
+      security:
+        - bearerAuth: []
+      x-source-files:
+        - src/modules/users/users.routes.ts
+        - src/modules/media/avatar.controller.ts
+        - src/modules/media/avatar.service.ts
+        - src/modules/media/avatar-cleanup.service.ts
+      responses:
+        "200":
+          description: Avatarı kaldırılmış güncel kullanıcı
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentUserResponse"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/users:
     get:
       tags: [Users]
@@ -526,10 +887,48 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/v1/conversations/group:
+    post:
+      tags: [Conversations]
+      summary: Create a group conversation
+      operationId: createGroupConversation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupConversationRequest"
+            example:
+              title: Product team
+              userIds:
+                - 22222222-2222-4222-8222-222222222222
+                - 33333333-3333-4333-8333-333333333333
+      responses:
+        "201":
+          description: Group created; caller is OWNER and requested users are MEMBER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupConversation"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "404":
+          description: At least one requested user is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/conversations:
     get:
       tags: [Conversations]
-      summary: Doğrudan konuşmaları listeleme
+      summary: Aktif DIRECT ve GROUP konuşmalarını listeleme
       operationId: listConversations
       security:
         - bearerAuth: []
@@ -595,7 +994,7 @@ paths:
   /api/v1/conversations/{conversationId}:
     get:
       tags: [Conversations]
-      summary: Üyesi olunan doğrudan konuşmayı alma
+      summary: Aktif üyesi olunan DIRECT veya GROUP konuşmasını alma
       operationId: getConversation
       security:
         - bearerAuth: []
@@ -612,7 +1011,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DirectConversation"
+                $ref: "#/components/schemas/Conversation"
               example:
                 id: 33333333-3333-4333-8333-333333333333
                 type: DIRECT
@@ -631,6 +1030,180 @@ paths:
           $ref: "#/components/responses/ConversationNotFound"
         "500":
           $ref: "#/components/responses/InternalError"
+
+    patch:
+      tags: [Conversations]
+      summary: Update a GROUP title
+      operationId: updateGroupTitle
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupTitleRequest"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupConversation"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/InsufficientRole"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/conversations/{conversationId}/members:
+    post:
+      tags: [Conversations]
+      summary: Add or reactivate a GROUP member
+      operationId: addGroupMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserIdRequest"
+      responses:
+        "201":
+          description: Active MEMBER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMember"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/InsufficientRole"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "409":
+          $ref: "#/components/responses/ConversationConflict"
+
+  /api/v1/conversations/{conversationId}/members/me:
+    delete:
+      tags: [Conversations]
+      summary: Leave a GROUP
+      operationId: leaveGroupConversation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "204":
+          description: Membership deactivated with leftAt
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "409":
+          $ref: "#/components/responses/ConversationConflict"
+
+  /api/v1/conversations/{conversationId}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+      - $ref: "#/components/parameters/UserId"
+    delete:
+      tags: [Conversations]
+      summary: Remove a GROUP member
+      operationId: removeGroupMember
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Membership deactivated and all target sockets removed from the room
+        "400":
+          description: Target is the caller; use /members/me
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/InsufficientRole"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "409":
+          $ref: "#/components/responses/ConversationConflict"
+    patch:
+      tags: [Conversations]
+      summary: Change a member between MEMBER and ADMIN
+      operationId: updateGroupMemberRole
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupMemberRoleRequest"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupMember"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/InsufficientRole"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "409":
+          $ref: "#/components/responses/ConversationConflict"
+
+  /api/v1/conversations/{conversationId}/owner:
+    put:
+      tags: [Conversations]
+      summary: Transfer GROUP ownership to an active member
+      operationId: transferGroupOwnership
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserIdRequest"
+      responses:
+        "200":
+          description: Previous OWNER is ADMIN and target is OWNER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupConversation"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/BearerUnauthorized"
+        "403":
+          $ref: "#/components/responses/InsufficientRole"
+        "404":
+          $ref: "#/components/responses/ConversationNotFound"
+        "409":
+          $ref: "#/components/responses/ConversationConflict"
 
   /api/v1/conversations/{conversationId}/messages:
     post:
@@ -973,6 +1546,14 @@ components:
         type: string
         format: uuid
       example: 44444444-4444-4444-8444-444444444444
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 22222222-2222-4222-8222-222222222222
     ProductionOrigin:
       name: Origin
       in: header
@@ -1009,6 +1590,47 @@ components:
       example: 60
 
   responses:
+    AvatarStorageUnavailable:
+      description: Object storage geçici olarak kullanılamıyor
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: AVATAR_STORAGE_UNAVAILABLE
+              message: Avatar storage is temporarily unavailable
+              requestId: 77777777-7777-4777-8777-777777777777
+    InsufficientRole:
+      description: Active member role does not permit the operation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: INSUFFICIENT_ROLE
+              message: Your role does not permit this action
+              requestId: 77777777-7777-4777-8777-777777777777
+    ConversationConflict:
+      description: Membership, capacity, OWNER-target, or last-OWNER conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            ownership:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Ownership must be transferred first
+                  requestId: 77777777-7777-4777-8777-777777777777
+            capacity:
+              value:
+                error:
+                  code: CONFLICT
+                  message: Group has reached the 100 active member limit
+                  requestId: 77777777-7777-4777-8777-777777777777
     RateLimited:
       description: İlgili endpoint'in bağımsız kotası aşıldı
       headers:
@@ -1207,6 +1829,78 @@ components:
           format: password
           minLength: 1
           maxLength: 128
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 128
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+    UpdateCurrentUserRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 32
+          description: Trim edilir ve tekil olmalıdır.
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Trim edilir.
+    CreateAvatarUploadRequest:
+      type: object
+      additionalProperties: false
+      required: [contentType, contentLength]
+      properties:
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+          description: İmzaya bağlanacak kaynak MIME türü.
+        contentLength:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+          description: Kaynak nesnenin byte boyutu; complete aşamasında kesin doğrulanır.
+    AvatarUploadIntent:
+      type: object
+      additionalProperties: false
+      required: [uploadId, upload]
+      properties:
+        uploadId:
+          type: string
+          format: uuid
+        upload:
+          type: object
+          additionalProperties: false
+          required: [url, method, headers, expiresAt]
+          properties:
+            url:
+              type: string
+              format: uri
+              description: Private incoming nesnesine ait, on dakika geçerli imzalı URL.
+            method:
+              type: string
+              const: PUT
+            headers:
+              type: object
+              additionalProperties:
+                type: string
+              description: PUT sırasında aynen gönderilmelidir; Content-Type imzaya dahildir.
+            expiresAt:
+              type: string
+              format: date-time
     PublicUser:
       type: object
       additionalProperties: false
@@ -1267,6 +1961,37 @@ components:
       properties:
         user:
           $ref: "#/components/schemas/PublicUser"
+    AuthSession:
+      type: object
+      additionalProperties: false
+      required: [id, userAgent, createdAt, lastUsedAt, expiresAt, isCurrent]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userAgent:
+          type: [string, "null"]
+          description: Session oluşturulurken gelen User-Agent; eski session'larda null olabilir.
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        isCurrent:
+          type: boolean
+    AuthSessionListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthSession"
     UserSearchResponse:
       type: object
       additionalProperties: false
@@ -1286,6 +2011,49 @@ components:
         userId:
           type: string
           format: uuid
+    UserIdRequest:
+      type: object
+      additionalProperties: false
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+    CreateGroupConversationRequest:
+      type: object
+      additionalProperties: false
+      required: [title, userIds]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        userIds:
+          type: array
+          minItems: 2
+          maxItems: 99
+          uniqueItems: true
+          description: Creator is not included; creator plus these users must total at least 3.
+          items:
+            type: string
+            format: uuid
+    UpdateGroupTitleRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+    UpdateGroupMemberRoleRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [MEMBER, ADMIN]
     DirectConversation:
       type: object
       additionalProperties: false
@@ -1304,6 +2072,51 @@ components:
           format: date-time
         otherUser:
           $ref: "#/components/schemas/PublicPeerUser"
+    GroupMember:
+      type: object
+      additionalProperties: false
+      required: [userId, role, joinedAt, user]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [MEMBER, ADMIN, OWNER]
+        joinedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/PublicPeerUser"
+    GroupConversation:
+      type: object
+      additionalProperties: false
+      required: [id, type, title, createdAt, members]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          const: GROUP
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/GroupMember"
+    Conversation:
+      oneOf:
+        - $ref: "#/components/schemas/DirectConversation"
+        - $ref: "#/components/schemas/GroupConversation"
+      discriminator:
+        propertyName: type
     LastMessage:
       type: object
       additionalProperties: false
@@ -1324,7 +2137,7 @@ components:
         deletedAt:
           type: [string, "null"]
           format: date-time
-    ListedConversation:
+    ListedDirectConversation:
       type: object
       additionalProperties: false
       required: [id, type, title, createdAt, otherUser, lastMessageAt, lastMessage, unreadCount]
@@ -1352,6 +2165,43 @@ components:
         unreadCount:
           type: integer
           minimum: 0
+    ListedGroupConversation:
+      type: object
+      additionalProperties: false
+      required: [id, type, title, createdAt, members, lastMessageAt, lastMessage, unreadCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          const: GROUP
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        members:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/GroupMember"
+        lastMessageAt:
+          type: [string, "null"]
+          format: date-time
+        lastMessage:
+          oneOf:
+            - $ref: "#/components/schemas/LastMessage"
+            - type: "null"
+        unreadCount:
+          type: integer
+          minimum: 0
+    ListedConversation:
+      oneOf:
+        - $ref: "#/components/schemas/ListedDirectConversation"
+        - $ref: "#/components/schemas/ListedGroupConversation"
+      discriminator:
+        propertyName: type
     ConversationListResponse:
       type: object
       additionalProperties: false

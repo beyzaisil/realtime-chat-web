@@ -7,13 +7,16 @@ import { useConversationPresence } from "../../presence/hooks/use-conversation-p
 import { UserAvatar } from "../../users/components/user-avatar";
 import { useConversationListRealtime } from "../hooks/use-conversation-list-realtime";
 import { useConversations } from "../hooks/use-conversations";
-import type { ConversationListItem } from "../types";
+import {
+  isListedDirectConversation,
+  type ConversationListItem,
+} from "../types";
 
 export function ConversationList() {
   const query = useConversations();
-  const userIds = query.conversations.map(
-    (conversation) => conversation.otherUser.id,
-  );
+  const userIds = query.conversations
+    .filter(isListedDirectConversation)
+    .map((conversation) => conversation.otherUser.id);
   const conversationIds = query.conversations.map(
     (conversation) => conversation.id,
   );
@@ -64,6 +67,7 @@ export function ConversationList() {
             <ConversationRow
               conversation={conversation}
               isOnline={
+                isListedDirectConversation(conversation) &&
                 presence[conversation.otherUser.id]?.status === "online"
               }
             />
@@ -95,6 +99,13 @@ function ConversationRow({
   const pathname = usePathname();
   const href = `/chat/${conversation.id}`;
   const isActive = pathname === href;
+  const isDirect = isListedDirectConversation(conversation);
+  const title = isDirect
+    ? conversation.otherUser.displayName
+    : conversation.title;
+  const subtitle = isDirect
+    ? `@${conversation.otherUser.username}`
+    : `${conversation.members.length} üyeli grup`;
 
   return (
     <Link
@@ -104,19 +115,23 @@ function ConversationRow({
         isActive ? "bg-emerald-50" : "hover:bg-slate-50"
       }`}
     >
-      <span className="relative">
-        <UserAvatar user={conversation.otherUser} />
-        <span
-          className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${
-            isOnline ? "bg-emerald-500" : "bg-slate-300"
-          }`}
-          aria-label={isOnline ? "Çevrimiçi" : "Çevrimdışı"}
-        />
-      </span>
+      {isDirect ? (
+        <span className="relative">
+          <UserAvatar user={conversation.otherUser} />
+          <span
+            className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-white ${
+              isOnline ? "bg-emerald-500" : "bg-slate-300"
+            }`}
+            aria-label={isOnline ? "Çevrimiçi" : "Çevrimdışı"}
+          />
+        </span>
+      ) : (
+        <GroupAvatar />
+      )}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
           <span className="min-w-0 flex-1 truncate font-semibold text-slate-900">
-            {conversation.otherUser.displayName}
+            {title}
           </span>
           {conversation.lastMessage?.createdAt ? (
             <time
@@ -129,7 +144,7 @@ function ConversationRow({
         </span>
         <span className="mt-0.5 flex items-center gap-2">
           <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
-            @{conversation.otherUser.username}
+            {subtitle}
           </span>
           {conversation.unreadCount > 0 ? (
             <span className="grid min-w-5 place-items-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
@@ -142,6 +157,16 @@ function ConversationRow({
         </span>
       </span>
     </Link>
+  );
+}
+
+function GroupAvatar() {
+  return (
+    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-800" aria-hidden="true">
+      <svg viewBox="0 0 20 20" fill="none" className="size-6">
+        <path d="M6.5 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM13.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM1.5 16.5c.3-3 2-4.5 5-4.5s4.7 1.5 5 4.5M11 11.5c.7-.4 1.5-.5 2.5-.5 2.8 0 4.4 1.4 4.7 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    </span>
   );
 }
 

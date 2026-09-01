@@ -33,6 +33,41 @@ const conversation: ConversationListItem = {
   unreadCount: 4,
 };
 
+const groupConversation: ConversationListItem = {
+  id: "conversation-2",
+  type: "GROUP",
+  title: "Product team",
+  createdAt: "2030-01-01T10:00:00.000Z",
+  members: [
+    {
+      userId: "user-1",
+      role: "OWNER",
+      joinedAt: "2030-01-01T10:00:00.000Z",
+      user: {
+        id: "user-1",
+        username: "alice",
+        displayName: "Alice",
+        avatarUrl: null,
+      },
+    },
+    {
+      userId: "user-2",
+      role: "MEMBER",
+      joinedAt: "2030-01-01T10:00:00.000Z",
+      user: conversation.otherUser,
+    },
+  ],
+  lastMessageAt: "2030-01-02T10:00:00.000Z",
+  lastMessage: {
+    id: "message-2",
+    body: "Toplantı saat 10'da",
+    senderId: "user-1",
+    createdAt: "2030-01-02T10:00:00.000Z",
+    deletedAt: null,
+  },
+  unreadCount: 1,
+};
+
 function queryResult(overrides: Record<string, unknown> = {}) {
   return {
     conversations: [],
@@ -80,6 +115,19 @@ describe("ConversationList", () => {
     expect(screen.getByText("Merhaba Alice")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByLabelText("Çevrimiçi")).toBeInTheDocument();
+  });
+
+  it("renders a group conversation with a safe basic presentation", () => {
+    vi.mocked(useConversations).mockReturnValue(
+      queryResult({ conversations: [conversation, groupConversation] }),
+    );
+
+    render(<ConversationList />);
+
+    expect(screen.getByText("Product team")).toBeInTheDocument();
+    expect(screen.getByText("2 üyeli grup")).toBeInTheDocument();
+    expect(screen.getByText("Toplantı saat 10'da")).toBeInTheDocument();
+    expect(useConversationPresence).toHaveBeenCalledWith(["user-2"]);
   });
 
   it("renders a distinct preview for a deleted last message", () => {
