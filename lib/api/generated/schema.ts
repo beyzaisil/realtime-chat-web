@@ -608,7 +608,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "DirectConversation";
+            type: "DIRECT";
         };
         ErrorResponse: {
             error: {
@@ -633,7 +633,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "GroupConversation";
+            type: "GROUP";
         };
         GroupMember: {
             /** Format: date-time */
@@ -675,7 +675,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "ListedDirectConversation";
+            type: "DIRECT";
             unreadCount: number;
         };
         ListedGroupConversation: {
@@ -692,7 +692,7 @@ export interface components {
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
-            type: "ListedGroupConversation";
+            type: "GROUP";
             unreadCount: number;
         };
         LoginRequest: {
