@@ -14,8 +14,12 @@ export type UserSearchResponse = Schemas["UserSearchResponse"];
 
 export type CreateDirectConversationRequest =
   Schemas["CreateDirectConversationRequest"];
+export type Conversation = Schemas["Conversation"];
 export type DirectConversation = Schemas["DirectConversation"];
+export type GroupConversation = Schemas["GroupConversation"];
 export type ListedConversation = Schemas["ListedConversation"];
+export type ListedDirectConversation = Schemas["ListedDirectConversation"];
+export type ListedGroupConversation = Schemas["ListedGroupConversation"];
 export type ConversationListResponse = Schemas["ConversationListResponse"];
 
 export type CreateMessageRequest = Schemas["CreateMessageRequest"];

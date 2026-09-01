@@ -7,6 +7,11 @@ import type {
   ListConversationsQuery,
 } from "../../../lib/api/types";
 import type { ApiClient } from "../../../lib/http/api-client";
+import {
+  parseConversationListResponse,
+  parseConversationResponse,
+  parseDirectConversationResponse,
+} from "./conversation-response";
 
 export type ListConversationsInput = ListConversationsQuery;
 
@@ -21,26 +26,32 @@ export async function listConversations(
   }
   search.set("limit", String(input.limit ?? 20));
 
-  return apiClient.request<ListConversationsOperationResponse>(
+  const response = await apiClient.request<unknown>(
     `/api/v1/conversations?${search.toString()}`,
   );
+
+  return parseConversationListResponse(response);
 }
 
 export async function getConversation(
   apiClient: ApiClient,
   conversationId: GetConversationPath["conversationId"],
 ): Promise<GetConversationOperationResponse> {
-  return apiClient.request<GetConversationOperationResponse>(
+  const response = await apiClient.request<unknown>(
     `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
   );
+
+  return parseConversationResponse(response);
 }
 
 export async function createDirectConversation(
   apiClient: ApiClient,
   input: CreateDirectConversationOperationRequest,
 ): Promise<CreateDirectConversationOperationResponse> {
-  return apiClient.request<CreateDirectConversationOperationResponse>(
+  const response = await apiClient.request<unknown>(
     "/api/v1/conversations/direct",
     { method: "POST", json: input },
   );
+
+  return parseDirectConversationResponse(response);
 }
