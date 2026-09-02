@@ -3,6 +3,7 @@ import type {
   ConversationListResponse,
   DirectConversation as ContractDirectConversation,
   GroupConversation as ContractGroupConversation,
+  GroupMember as ContractGroupMember,
   ListedConversation as ContractListedConversation,
   ListedDirectConversation as ContractListedDirectConversation,
   ListedGroupConversation as ContractListedGroupConversation,
@@ -13,6 +14,7 @@ export type ConversationUser = PublicPeerUser;
 export type Conversation = ContractConversation;
 export type DirectConversation = ContractDirectConversation;
 export type GroupConversation = ContractGroupConversation;
+export type GroupMember = ContractGroupMember;
 export type ConversationListItem = ContractListedConversation;
 export type ListedDirectConversation = ContractListedDirectConversation;
 export type ListedGroupConversation = ContractListedGroupConversation;
