@@ -26,6 +26,9 @@ function AuthProbe() {
     <div>
       <span data-testid="status">{auth.status}</span>
       <span data-testid="user">{auth.user?.username ?? "none"}</span>
+      <span data-testid="display-name">
+        {auth.user?.displayName ?? "none"}
+      </span>
       <span data-testid="token">{auth.accessToken ?? "none"}</span>
       <button
         onClick={() =>
@@ -50,6 +53,18 @@ function AuthProbe() {
         register
       </button>
       <button onClick={() => void auth.logout()}>logout</button>
+      <button
+        onClick={() => {
+          if (auth.user !== null) {
+            auth.setCurrentUser({
+              ...auth.user,
+              displayName: "Updated Alice",
+            });
+          }
+        }}
+      >
+        update current user
+      </button>
     </div>
   );
 }
@@ -202,5 +217,26 @@ describe("AuthProvider", () => {
     );
     expect(screen.getByTestId("user")).toHaveTextContent("none");
     expect(screen.getByTestId("token")).toHaveTextContent("none");
+  });
+
+  it("updates the current user in memory without another request", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ accessToken: "fresh-token" }))
+      .mockResolvedValueOnce(jsonResponse({ user }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderProvider();
+    await waitFor(() =>
+      expect(screen.getByTestId("status")).toHaveTextContent("authenticated"),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "update current user" }),
+    );
+
+    expect(screen.getByTestId("display-name")).toHaveTextContent(
+      "Updated Alice",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

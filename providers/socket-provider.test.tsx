@@ -50,6 +50,7 @@ const register = vi.fn(async () => undefined);
 const logout = vi.fn(async () => undefined);
 const refresh = vi.fn(async () => true);
 const bootstrap = vi.fn(async () => undefined);
+const setCurrentUser = vi.fn();
 
 function authValue(
   status: AuthStatus,
@@ -60,6 +61,7 @@ function authValue(
     accessToken,
     status,
     apiClient,
+    setCurrentUser,
     login,
     register,
     logout,
