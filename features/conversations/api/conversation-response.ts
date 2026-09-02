@@ -3,6 +3,7 @@ import type {
   ConversationPage,
   DirectConversation,
   GroupConversation,
+  GroupMember,
   ListedDirectConversation,
   ListedGroupConversation,
 } from "../types";
@@ -29,7 +30,9 @@ function isConversationUser(value: unknown): boolean {
   );
 }
 
-function isGroupMember(value: unknown): boolean {
+export function isGroupMemberResponse(
+  value: unknown,
+): value is GroupMember {
   return (
     isRecord(value) &&
     isString(value.userId) &&
@@ -42,7 +45,7 @@ function isGroupMember(value: unknown): boolean {
 }
 
 function isGroupMembers(value: unknown): boolean {
-  return Array.isArray(value) && value.every(isGroupMember);
+  return Array.isArray(value) && value.every(isGroupMemberResponse);
 }
 
 function isLastMessage(value: unknown): boolean {
@@ -140,6 +143,24 @@ export function parseDirectConversationResponse(
   }
 
   throw new TypeError("Invalid direct conversation response");
+}
+
+export function parseGroupConversationResponse(
+  value: unknown,
+): GroupConversation {
+  if (isGroupConversationResponse(value)) {
+    return value;
+  }
+
+  throw new TypeError("Invalid group conversation response");
+}
+
+export function parseGroupMemberResponse(value: unknown): GroupMember {
+  if (isGroupMemberResponse(value)) {
+    return value;
+  }
+
+  throw new TypeError("Invalid group member response");
 }
 
 function isConversationListPage(value: unknown): value is ConversationPage {

@@ -17,6 +17,7 @@ export type CreateDirectConversationRequest =
 export type Conversation = Schemas["Conversation"];
 export type DirectConversation = Schemas["DirectConversation"];
 export type GroupConversation = Schemas["GroupConversation"];
+export type GroupMember = Schemas["GroupMember"];
 export type ListedConversation = Schemas["ListedConversation"];
 export type ListedDirectConversation = Schemas["ListedDirectConversation"];
 export type ListedGroupConversation = Schemas["ListedGroupConversation"];
@@ -61,6 +62,38 @@ export type CreateDirectConversationOperationRequest =
 export type CreateDirectConversationOperationResponse =
   | operations["createDirectConversation"]["responses"][200]["content"]["application/json"]
   | operations["createDirectConversation"]["responses"][201]["content"]["application/json"];
+export type CreateGroupConversationOperationRequest =
+  operations["createGroupConversation"]["requestBody"]["content"]["application/json"];
+export type CreateGroupConversationOperationResponse =
+  operations["createGroupConversation"]["responses"][201]["content"]["application/json"];
+export type UpdateGroupTitlePath =
+  operations["updateGroupTitle"]["parameters"]["path"];
+export type UpdateGroupTitleOperationRequest =
+  operations["updateGroupTitle"]["requestBody"]["content"]["application/json"];
+export type UpdateGroupTitleOperationResponse =
+  operations["updateGroupTitle"]["responses"][200]["content"]["application/json"];
+export type AddGroupMemberPath =
+  operations["addGroupMember"]["parameters"]["path"];
+export type AddGroupMemberOperationRequest =
+  operations["addGroupMember"]["requestBody"]["content"]["application/json"];
+export type AddGroupMemberOperationResponse =
+  operations["addGroupMember"]["responses"][201]["content"]["application/json"];
+export type LeaveGroupConversationPath =
+  operations["leaveGroupConversation"]["parameters"]["path"];
+export type RemoveGroupMemberPath =
+  operations["removeGroupMember"]["parameters"]["path"];
+export type UpdateGroupMemberRolePath =
+  operations["updateGroupMemberRole"]["parameters"]["path"];
+export type UpdateGroupMemberRoleOperationRequest =
+  operations["updateGroupMemberRole"]["requestBody"]["content"]["application/json"];
+export type UpdateGroupMemberRoleOperationResponse =
+  operations["updateGroupMemberRole"]["responses"][200]["content"]["application/json"];
+export type TransferGroupOwnershipPath =
+  operations["transferGroupOwnership"]["parameters"]["path"];
+export type TransferGroupOwnershipOperationRequest =
+  operations["transferGroupOwnership"]["requestBody"]["content"]["application/json"];
+export type TransferGroupOwnershipOperationResponse =
+  operations["transferGroupOwnership"]["responses"][200]["content"]["application/json"];
 
 export type ListMessagesQuery = NonNullable<
   operations["listMessages"]["parameters"]["query"]
