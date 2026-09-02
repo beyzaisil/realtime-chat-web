@@ -3,13 +3,18 @@
 import { usePathname } from "next/navigation";
 import { useCallback, useState, type ReactNode } from "react";
 
+import { useAuth } from "../../../providers/auth-provider";
+import { ProfileDialog } from "../../profile/components/profile-dialog";
 import { NewConversationDialog } from "../../users/components/new-conversation-dialog";
+import { UserAvatar } from "../../users/components/user-avatar";
 import { ConversationSubscriptionProvider } from "../../messages/providers/conversation-subscription-provider";
 import { ConversationList } from "./conversation-list";
 
 export function ChatShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const [isNewConversationOpen, setIsNewConversationOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const hasSelectedConversation = pathname !== "/chat";
   const closeNewConversation = useCallback(
     () => setIsNewConversationOpen(false),
@@ -28,14 +33,27 @@ export function ChatShell({ children }: { children: ReactNode }) {
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Chat</p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Sohbetler</h1>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsNewConversationOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/15"
-            >
-              <PlusIcon />
-              <span className="hidden min-[340px]:inline">Yeni sohbet</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {user !== null ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(true)}
+                  aria-label="Profili aç"
+                  title="Profil"
+                  className="rounded-full focus:outline-none focus:ring-4 focus:ring-emerald-700/15"
+                >
+                  <UserAvatar user={user} size="sm" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setIsNewConversationOpen(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-700/15"
+              >
+                <PlusIcon />
+                <span className="hidden min-[340px]:inline">Yeni sohbet</span>
+              </button>
+            </div>
           </header>
           <div className="mx-5 mb-3 h-px bg-slate-100" />
           <ConversationList />
@@ -51,6 +69,10 @@ export function ChatShell({ children }: { children: ReactNode }) {
         <NewConversationDialog
           open={isNewConversationOpen}
           onClose={closeNewConversation}
+        />
+        <ProfileDialog
+          open={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
         />
       </main>
     </ConversationSubscriptionProvider>

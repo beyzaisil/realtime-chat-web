@@ -37,6 +37,7 @@ export interface AuthContextValue {
   accessToken: string | null;
   status: AuthStatus;
   apiClient: ApiClient;
+  setCurrentUser(user: UserDto): void;
   login(input: LoginInput): Promise<void>;
   register(input: RegisterInput): Promise<void>;
   logout(): Promise<void>;
@@ -67,6 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const applyAccessToken = useCallback((token: string): void => {
     accessTokenRef.current = token;
     setAccessToken(token);
+  }, []);
+
+  const setCurrentUser = useCallback((nextUser: UserDto): void => {
+    setUser(nextUser);
   }, []);
 
   const performRefresh = useCallback(async (): Promise<string | null> => {
@@ -182,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken,
       status,
       apiClient,
+      setCurrentUser,
       login,
       register,
       logout,
@@ -193,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accessToken,
       status,
       apiClient,
+      setCurrentUser,
       login,
       register,
       logout,

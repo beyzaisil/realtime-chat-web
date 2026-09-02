@@ -42,6 +42,20 @@ export type RefreshOperationResponse =
   operations["refreshAccessToken"]["responses"][200]["content"]["application/json"];
 export type CurrentUserOperationResponse =
   operations["getCurrentUser"]["responses"][200]["content"]["application/json"];
+export type UpdateCurrentUserOperationRequest =
+  operations["updateCurrentUser"]["requestBody"]["content"]["application/json"];
+export type UpdateCurrentUserOperationResponse =
+  operations["updateCurrentUser"]["responses"][200]["content"]["application/json"];
+export type CreateAvatarUploadOperationRequest =
+  operations["createAvatarUpload"]["requestBody"]["content"]["application/json"];
+export type CreateAvatarUploadOperationResponse =
+  operations["createAvatarUpload"]["responses"][201]["content"]["application/json"];
+export type CompleteAvatarUploadPath =
+  operations["completeAvatarUpload"]["parameters"]["path"];
+export type CompleteAvatarUploadOperationResponse =
+  operations["completeAvatarUpload"]["responses"][200]["content"]["application/json"];
+export type DeleteCurrentUserAvatarOperationResponse =
+  operations["deleteCurrentUserAvatar"]["responses"][200]["content"]["application/json"];
 
 export type SearchUsersQuery =
   operations["searchUsers"]["parameters"]["query"];
