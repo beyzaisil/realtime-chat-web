@@ -9,6 +9,11 @@ import type { SearchUser } from "../types";
 
 export const MIN_USER_QUERY_LENGTH = 2;
 export const USER_SEARCH_DEBOUNCE_MS = 300;
+export const userSearchKeys = {
+  all: ["users"] as const,
+  searches: () => [...userSearchKeys.all, "search"] as const,
+  search: (query: string) => [...userSearchKeys.searches(), query] as const,
+};
 
 export function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -30,7 +35,7 @@ export function useUserSearch(query: string) {
   );
   const canSearch = debouncedQuery.length >= MIN_USER_QUERY_LENGTH;
   const searchQuery = useInfiniteQuery({
-    queryKey: ["users", "search", debouncedQuery],
+    queryKey: userSearchKeys.search(debouncedQuery),
     queryFn: ({ pageParam }) =>
       searchUsers(apiClient, {
         query: debouncedQuery,
