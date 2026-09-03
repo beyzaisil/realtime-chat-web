@@ -195,6 +195,66 @@ export interface paths {
         patch: operations["updateGroupTitle"];
         trace?: never;
     };
+    "/api/v1/conversations/{conversationId}/attachments/{attachmentId}/{variant}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Private mesaj eki için kısa ömürlü indirme yönlendirmesi
+         * @description Aktif üyelik ve bağlı mesajın silinmemiş olduğu doğrulanır; yeni presigned GET ile 307 dönülür. PDF yalnızca original variant ile ve `Content-Disposition: attachment` olarak indirilir.
+         */
+        get: operations["accessMessageAttachment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/attachments/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mesaj görseli veya PDF'i için private upload intent oluşturma
+         * @description Aktif konuşma üyeliği doğrulanır; JPEG/PNG/WebP en fazla 10 MiB, PDF en fazla 25 MiB olabilir.
+         */
+        post: operations["createMessageAttachmentUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/attachments/uploads/{attachmentId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Yüklenen mesaj görselini veya PDF'i doğrulama ve işleme
+         * @description Görseller private WebP asıl ve thumbnail'e işlenir. PDF magic-byte ve parser ile doğrulanır, ClamAV ile taranır ve aynı byte dizisi private ready object'e alınır. Başarılı complete sonunda raw incoming silinir.
+         */
+        post: operations["completeMessageAttachmentUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversationId}/members": {
         parameters: {
             query?: never;
@@ -263,7 +323,7 @@ export interface paths {
         get: operations["listMessages"];
         put?: never;
         /**
-         * Metin mesajı oluşturma veya idempotent retry sonucunu döndürme
+         * TEXT/MEDIA mesaj oluşturma veya idempotent retry sonucunu döndürme
          * @description Doğrulanmış kullanıcı başına dakikada 60 istekle sınırlıdır.
          */
         post: operations["createMessage"];
@@ -288,17 +348,20 @@ export interface paths {
          * @description Kayıt DB'den silinmez. İlk başarılı silmede `deletedAt` yazılır ve commit
          *     sonrasında `message:deleted` yayınlanır. Aynı gönderenin tekrarlanan silme
          *     isteği aynı tombstone'u döndürür; timestamp değişmez ve ikinci event
-         *     yayınlanmaz.
+         *     yayınlanmaz. MEDIA tombstone `body: null` ve `attachments: []` taşır;
+         *     private erişim anında kesilir, fiziksel silme retention worker'a bırakılır.
          */
         delete: operations["deleteMessage"];
         options?: never;
         head?: never;
         /**
-         * Gönderenin metin mesajını düzenlemesi
+         * Gönderenin TEXT içeriğini veya MEDIA caption'ını düzenlemesi
          * @description Yalnızca mesajı gönderen aktif conversation üyesi düzenleyebilir. Trim
          *     edilmiş içerik mevcut body ile aynıysa işlem idempotent no-op olur;
          *     `editedAt` değişmez ve `message:updated` yayınlanmaz. Silinmiş mesaj
-         *     düzenlenemez.
+         *     düzenlenemez. MEDIA mesajında yalnızca caption değişir; attachment listesi
+         *     sabittir ve `attachmentIds` strict validation ile reddedilir. `text: null`
+         *     caption'ı kaldırır.
          */
         patch: operations["updateMessage"];
         trace?: never;
@@ -516,6 +579,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AttachmentUploadIntent: {
+            /** Format: uuid */
+            attachmentId: string;
+            upload: components["schemas"]["PresignedUpload"];
+        };
         AuthResponse: {
             accessToken: string;
             user: components["schemas"]["PublicUser"];
@@ -566,6 +634,13 @@ export interface components {
             items: components["schemas"]["ListedConversation"][];
             nextCursor: string | null;
         };
+        CreateAttachmentUploadRequest: {
+            /** @description IMAGE için en fazla 10485760, PDF için en fazla 26214400 byte. */
+            contentLength: number;
+            /** @enum {string} */
+            contentType: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
+            originalFileName: string;
+        };
         CreateAvatarUploadRequest: {
             /** @description Kaynak nesnenin byte boyutu; complete aşamasında kesin doğrulanır. */
             contentLength: number;
@@ -587,12 +662,7 @@ export interface components {
         CreateMessageRequest: {
             /** Format: uuid */
             clientMessageId: string;
-            content: {
-                /** @description Kaydedilmeden önce trim edilir. */
-                text: string;
-                /** @constant */
-                type: "text";
-            };
+            content: components["schemas"]["TextMessageContent"] | components["schemas"]["MediaMessageContent"];
         };
         CurrentUserResponse: {
             user: components["schemas"]["PublicUser"];
@@ -647,6 +717,22 @@ export interface components {
         HealthResponse: {
             /** @constant */
             status: "ok";
+        };
+        ImageMessageAttachment: {
+            /** @constant */
+            contentType: "image/webp";
+            height: number;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "IMAGE";
+            originalFileName: string;
+            thumbnailUrl: string;
+            url: string;
+            width: number;
         };
         LastMessage: {
             /** @description Soft-delete edilmiş son mesajda null; DB içeriği istemciye açılmaz. */
@@ -704,7 +790,33 @@ export interface components {
             /** Format: password */
             password: string;
         };
-        Message: {
+        MediaCaptionUpdateContent: {
+            text: string | null;
+            /** @constant */
+            type: "media";
+        };
+        MediaMessage: components["schemas"]["MessageBase"] & {
+            /** @description Silinmiş MEDIA mesajında boş dizidir. */
+            attachments: components["schemas"]["MessageAttachment"][];
+            /** @constant */
+            kind?: "MEDIA";
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "MEDIA";
+        };
+        MediaMessageContent: {
+            /** @description IMAGE ve PDF birlikte kullanılabilir; doğrulanmış actualSize toplamı en fazla 52428800 byte olabilir. */
+            attachmentIds: string[];
+            text?: string;
+            /** @constant */
+            type: "media";
+        };
+        Message: components["schemas"]["TextMessage"] | components["schemas"]["MediaMessage"];
+        MessageAttachment: components["schemas"]["ImageMessageAttachment"] | components["schemas"]["PdfMessageAttachment"];
+        MessageBase: {
             /** @description Soft-delete edilmiş mesajda null; saklanan DB içeriği API'de açılmaz. */
             body: string | null;
             /** Format: uuid */
@@ -719,14 +831,38 @@ export interface components {
             editedAt: string | null;
             /** Format: uuid */
             id: string;
-            /** @constant */
-            kind: "TEXT";
+            /** @enum {string} */
+            kind: "TEXT" | "MEDIA";
             /** Format: uuid */
             senderId: string;
         };
         MessageHistoryResponse: {
             items: components["schemas"]["Message"][];
             nextCursor: string | null;
+        };
+        PdfMessageAttachment: {
+            /** @constant */
+            contentType: "application/pdf";
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "PDF";
+            originalFileName: string;
+            url: string;
+        };
+        PresignedUpload: {
+            /** Format: date-time */
+            expiresAt: string;
+            headers: {
+                [key: string]: string;
+            };
+            /** @constant */
+            method: "PUT";
+            /** Format: uri */
+            url: string;
         };
         PublicPeerUser: {
             avatarUrl: string | null;
@@ -778,6 +914,21 @@ export interface components {
             /** @description Trim edilir. */
             username: string;
         };
+        TextMessage: components["schemas"]["MessageBase"] & {
+            /** @constant */
+            kind?: "TEXT";
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "TEXT";
+        };
+        TextMessageContent: {
+            text: string;
+            /** @constant */
+            type: "text";
+        };
         UpdateCurrentUserRequest: {
             /** @description Trim edilir. */
             displayName?: string;
@@ -792,12 +943,7 @@ export interface components {
             title: string;
         };
         UpdateMessageRequest: {
-            content: {
-                /** @description Karşılaştırılmadan ve kaydedilmeden önce trim edilir. */
-                text: string;
-                /** @constant */
-                type: "text";
-            };
+            content: components["schemas"]["TextMessageContent"] | components["schemas"]["MediaCaptionUpdateContent"];
         };
         UpdateReadRequest: {
             /** Format: uuid */
@@ -817,6 +963,33 @@ export interface components {
         };
     };
     responses: {
+        /** @description Attachment storage veya malware scanner geçici olarak kullanılamıyor; scanner hatası kalıcı ret değildir ve complete yeniden denenebilir */
+        AttachmentProcessingUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Attachment object storage geçici olarak kullanılamıyor */
+        AttachmentStorageUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "ATTACHMENT_STORAGE_UNAVAILABLE",
+                 *         "message": "Attachment storage is temporarily unavailable",
+                 *         "requestId": "77777777-7777-4777-8777-777777777777"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
         /** @description Object storage geçici olarak kullanılamıyor */
         AvatarStorageUnavailable: {
             headers: {
@@ -992,6 +1165,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @example 66666666-6666-4666-8666-666666666666 */
+        AttachmentId: string;
         /** @example 33333333-3333-4333-8333-333333333333 */
         ConversationId: string;
         /** @example 44444444-4444-4444-8444-444444444444 */
@@ -1000,8 +1175,8 @@ export interface components {
          * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
          *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
          *     Development/test ortamında middleware bu kontrolü atlar.
-         *     Kaynak: `src/modules/auth/auth.routes.ts`,
-         *     `src/modules/auth/auth.middleware.ts`.
+         *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+         *     `src/modules/auth/http/auth.middleware.ts`.
          * @example https://chat.example.com
          */
         ProductionOrigin: string;
@@ -1015,7 +1190,7 @@ export interface components {
         /**
          * @description `chat_refresh_token=<opaque>; Path=/api/v1/auth; HttpOnly; SameSite=Lax`.
          *     `Max-Age` ve `Expires` session süresinden hesaplanır; production'da
-         *     `Secure` eklenir. Kaynak: `src/modules/auth/refresh-cookie.ts`.
+         *     `Secure` eklenir. Kaynak: `src/modules/auth/http/refresh-cookie.ts`.
          */
         RefreshCookie: string;
         /**
@@ -1104,8 +1279,8 @@ export interface operations {
                  * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
                  *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
                  *     Development/test ortamında middleware bu kontrolü atlar.
-                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
-                 *     `src/modules/auth/auth.middleware.ts`.
+                 *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+                 *     `src/modules/auth/http/auth.middleware.ts`.
                  * @example https://chat.example.com
                  */
                 Origin?: components["parameters"]["ProductionOrigin"];
@@ -1176,8 +1351,8 @@ export interface operations {
                  * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
                  *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
                  *     Development/test ortamında middleware bu kontrolü atlar.
-                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
-                 *     `src/modules/auth/auth.middleware.ts`.
+                 *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+                 *     `src/modules/auth/http/auth.middleware.ts`.
                  * @example https://chat.example.com
                  */
                 Origin?: components["parameters"]["ProductionOrigin"];
@@ -1221,8 +1396,8 @@ export interface operations {
                  * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
                  *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
                  *     Development/test ortamında middleware bu kontrolü atlar.
-                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
-                 *     `src/modules/auth/auth.middleware.ts`.
+                 *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+                 *     `src/modules/auth/http/auth.middleware.ts`.
                  * @example https://chat.example.com
                  */
                 Origin?: components["parameters"]["ProductionOrigin"];
@@ -1363,8 +1538,8 @@ export interface operations {
                  * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
                  *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
                  *     Development/test ortamında middleware bu kontrolü atlar.
-                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
-                 *     `src/modules/auth/auth.middleware.ts`.
+                 *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+                 *     `src/modules/auth/http/auth.middleware.ts`.
                  * @example https://chat.example.com
                  */
                 Origin?: components["parameters"]["ProductionOrigin"];
@@ -1394,8 +1569,8 @@ export interface operations {
                  * @description Production ortamında zorunludur ve `FRONTEND_ORIGIN` ile bire bir
                  *     karşılaştırılır; eşleşmezse `403 CSRF_VALIDATION_FAILED` döner.
                  *     Development/test ortamında middleware bu kontrolü atlar.
-                 *     Kaynak: `src/modules/auth/auth.routes.ts`,
-                 *     `src/modules/auth/auth.middleware.ts`.
+                 *     Kaynak: `src/modules/auth/http/auth.routes.ts`,
+                 *     `src/modules/auth/http/auth.middleware.ts`.
                  * @example https://chat.example.com
                  */
                 Origin?: components["parameters"]["ProductionOrigin"];
@@ -1550,6 +1725,128 @@ export interface operations {
             403: components["responses"]["InsufficientRole"];
             404: components["responses"]["ConversationNotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    accessMessageAttachment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 66666666-6666-4666-8666-666666666666 */
+                attachmentId: components["parameters"]["AttachmentId"];
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+                variant: "original" | "thumbnail";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kısa ömürlü private object-storage URL'sine yönlendirme */
+            307: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            /** @description Conversation, attachment veya erişilebilir canlı mesaj bulunamadı */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            503: components["responses"]["AttachmentStorageUnavailable"];
+        };
+    };
+    createMessageAttachmentUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAttachmentUploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Private upload intent */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentUploadIntent"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            404: components["responses"]["ConversationNotFound"];
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["AttachmentStorageUnavailable"];
+        };
+    };
+    completeMessageAttachmentUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 66666666-6666-4666-8666-666666666666 */
+                attachmentId: components["parameters"]["AttachmentId"];
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mesaja bağlanmaya hazır görsel veya PDF metadata'sı */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        attachment: components["schemas"]["MessageAttachment"];
+                    };
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            /** @description Conversation gizlenmiştir veya upload bulunamadı */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Upload süresi doldu, tamamlanmadı veya durumu çakışıyor */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Yüklenen nesne geçersiz, şifreli, zararlı veya intent kind/MIME değeriyle uyumsuz (`INVALID_ATTACHMENT_FILE` veya `KIND_MISMATCH`) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["RateLimited"];
+            503: components["responses"]["AttachmentProcessingUnavailable"];
         };
     };
     addGroupMember: {
@@ -1803,6 +2100,13 @@ export interface operations {
             400: components["responses"]["ValidationError"];
             401: components["responses"]["BearerUnauthorized"];
             404: components["responses"]["ConversationNotFound"];
+            /** @description Attachment binding çakıştı veya doğrulanmış toplam ek boyutu 50 MiB sınırını aştı (`ATTACHMENT_BINDING_CONFLICT` veya `MESSAGE_ATTACHMENTS_TOTAL_SIZE_EXCEEDED`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             413: components["responses"]["PayloadTooLarge"];
             429: components["responses"]["RateLimited"];
             500: components["responses"]["InternalError"];
