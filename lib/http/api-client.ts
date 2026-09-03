@@ -17,6 +17,7 @@ export interface ApiRequestOptions
   auth?: "required" | "none";
   headers?: HeadersInit;
   json?: unknown;
+  responseType?: "json" | "raw";
 }
 
 export interface ApiClientOptions {
@@ -70,6 +71,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       auth: _authMode,
       json,
       headers: requestHeaders,
+      responseType: _responseType,
       ...nativeOptions
     } = requestOptions;
     const headers = new Headers(requestHeaders);
@@ -94,10 +96,17 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     });
   }
 
-  async function readResponse<T>(response: Response): Promise<T> {
+  async function readResponse<T>(
+    response: Response,
+    responseType: ApiRequestOptions["responseType"],
+  ): Promise<T> {
     if (!response.ok) {
       const payload = await readJsonSafely(response);
       throw parseBackendError(response.status, payload);
+    }
+
+    if (responseType === "raw") {
+      return response as T;
     }
 
     if (response.status === 204) {
@@ -123,13 +132,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         !AUTH_REFRESH_EXEMPT_PATHS.has(new URL(path, options.baseUrl).pathname);
 
       if (response.status !== 401 || !canRefresh) {
-        return readResponse<T>(response);
+        return readResponse<T>(response, normalizedOptions.responseType);
       }
 
       const refreshedToken = await refreshSingleFlight();
 
       if (refreshedToken === null) {
-        return readResponse<T>(response);
+        return readResponse<T>(response, normalizedOptions.responseType);
       }
 
       const retryResponse = await execute(path, normalizedOptions);
@@ -138,7 +147,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         await notifyUnauthorized();
       }
 
-      return readResponse<T>(retryResponse);
+      return readResponse<T>(retryResponse, normalizedOptions.responseType);
     },
   };
 }
