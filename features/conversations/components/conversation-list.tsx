@@ -193,11 +193,11 @@ function getConversationPreview(
     return "Henüz mesaj yok";
   }
 
-  if (lastMessage.deletedAt !== null || lastMessage.body === null) {
+  if (lastMessage.deletedAt !== null) {
     return "Mesaj silindi.";
   }
 
-  return lastMessage.body;
+  return lastMessage.body ?? "Medya mesajı";
 }
 
 function formatConversationTime(value: string): string {

@@ -172,6 +172,29 @@ describe("ConversationList", () => {
     expect(screen.queryByText("Mesaj silindi.")).not.toBeInTheDocument();
   });
 
+  it("renders a media preview when the last message has no caption", () => {
+    vi.mocked(useConversations).mockReturnValue(
+      queryResult({
+        conversations: [
+          {
+            ...conversation,
+            lastMessage: {
+              ...conversation.lastMessage!,
+              body: null,
+              deletedAt: null,
+            },
+          },
+        ],
+      }),
+    );
+
+    render(<ConversationList />);
+
+    expect(screen.getByText("Medya mesajı")).toBeInTheDocument();
+    expect(screen.queryByText("Mesaj silindi.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Henüz mesaj yok")).not.toBeInTheDocument();
+  });
+
   it("loads the next page from the list action", () => {
     const fetchNextPage = vi.fn();
     vi.mocked(useConversations).mockReturnValue(

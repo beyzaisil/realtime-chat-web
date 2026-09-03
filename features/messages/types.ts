@@ -1,7 +1,10 @@
 import type {
+  MediaMessage,
   Message,
+  MessageAttachment,
   MessageHistoryResponse,
   ReadWatermarkResponse,
+  TextMessage,
 } from "../../lib/api/types";
 import {
   type ApiClientError,
@@ -9,7 +12,22 @@ import {
 import { isApiClientError } from "../../lib/http/api-client";
 
 export type MessageDto = Message;
+export type TextMessageDto = TextMessage;
+export type MediaMessageDto = MediaMessage;
+export type MessageAttachmentDto = MessageAttachment;
 export type MessageHistoryPage = MessageHistoryResponse;
+
+export function isTextMessage(
+  message: MessageDto,
+): message is TextMessageDto {
+  return message.kind === "TEXT";
+}
+
+export function isMediaMessage(
+  message: MessageDto,
+): message is MediaMessageDto {
+  return message.kind === "MEDIA";
+}
 
 export interface SendMessageInput {
   text: string;
@@ -18,6 +36,7 @@ export interface SendMessageInput {
 
 export interface UpdateMessageInput {
   messageId: string;
+  kind: MessageDto["kind"];
   text: string;
 }
 

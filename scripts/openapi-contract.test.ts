@@ -27,6 +27,13 @@ const backendConversationDiscriminators = {
   ListedGroupConversation: "GROUP",
 } as const;
 
+const backendMessageDiscriminators = {
+  TextMessage: "TEXT",
+  MediaMessage: "MEDIA",
+  ImageMessageAttachment: "IMAGE",
+  PdfMessageAttachment: "PDF",
+} as const;
+
 async function createTemporaryDirectory(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), "chat-openapi-"));
   temporaryDirectories.push(directory);
@@ -41,16 +48,17 @@ function runScript(script: string, ...arguments_: string[]) {
 }
 
 function getGeneratedSchema(generated: string, schemaName: string): string {
-  const startMarker = `        ${schemaName}: {`;
+  const startMarker = `        ${schemaName}:`;
   const start = generated.indexOf(startMarker);
   if (start === -1) {
     throw new Error(`Generated schema ${schemaName} was not found`);
   }
 
-  const end = generated.indexOf("\n        };", start);
-  if (end === -1) {
-    throw new Error(`Generated schema ${schemaName} is incomplete`);
-  }
+  const remainingSchemas = generated.slice(start + startMarker.length);
+  const nextSchema = remainingSchemas.match(/\n        [A-Za-z_$][\w$]*:/);
+  const end = nextSchema?.index === undefined
+    ? generated.length
+    : start + startMarker.length + nextSchema.index;
 
   return generated.slice(start, end);
 }
@@ -177,11 +185,28 @@ describe("OpenAPI contract tooling", () => {
       expect(schema).not.toContain(`type: "${schemaName}";`);
     }
 
-    const createMessageRequest = getGeneratedSchema(
+    const textMessageContent = getGeneratedSchema(
       generated,
-      "CreateMessageRequest",
+      "TextMessageContent",
     );
-    expect(createMessageRequest).toContain('type: "text";');
+    expect(textMessageContent).toContain('type: "text";');
+  });
+
+  it("keeps generated message discriminators aligned with backend responses", async () => {
+    const directory = await createTemporaryDirectory();
+    const generatedPath = join(directory, "schema.ts");
+
+    const result = runScript(generateScript, contractPath, generatedPath);
+    const generated = await readFile(generatedPath, "utf8");
+
+    expect(result.status).toBe(0);
+    for (const [schemaName, runtimeValue] of Object.entries(
+      backendMessageDiscriminators,
+    )) {
+      const schema = getGeneratedSchema(generated, schemaName);
+      expect(schema).toContain(`kind: "${runtimeValue}";`);
+      expect(schema).not.toContain(`kind: "${schemaName}";`);
+    }
   });
 
   it("does not rewrite an unchanged generated file", async () => {

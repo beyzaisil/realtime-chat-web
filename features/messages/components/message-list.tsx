@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { MessageDto } from "../types";
+import { isMediaMessage, type MessageDto } from "../types";
 import { useMessageHistory } from "../hooks/use-message-history";
 import { MessageActions } from "./message-actions";
 
@@ -141,7 +141,7 @@ function MessageBubble({
   currentUserId: string;
 }) {
   const isOwn = message.senderId === currentUserId;
-  const isDeleted = message.deletedAt !== null || message.body === null;
+  const isDeleted = message.deletedAt !== null;
   const [isEditing, setIsEditing] = useState(false);
 
   return (
@@ -160,7 +160,11 @@ function MessageBubble({
             isDeleted ? "italic opacity-75" : isOwn ? "pr-9" : ""
           }`}
         >
-          {isDeleted ? "Bu mesaj silindi." : message.body}
+          {isDeleted
+            ? "Bu mesaj silindi."
+            : isMediaMessage(message) && message.body === null
+              ? "Medya mesajı"
+              : message.body}
         </p>
       ) : null}
       {!isEditing ? <span className="mt-1 flex items-center justify-end gap-1.5">

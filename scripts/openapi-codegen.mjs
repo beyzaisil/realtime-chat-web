@@ -55,6 +55,62 @@ function getSingleStringValue(schema) {
   return undefined;
 }
 
+function getDiscriminatorRuntimeValue(
+  document,
+  schema,
+  propertyName,
+  visitedReferences = new Set(),
+) {
+  if (!isRecord(schema)) {
+    return undefined;
+  }
+
+  const directValue = getSingleStringValue(schema.properties?.[propertyName]);
+  if (directValue !== undefined) {
+    return directValue;
+  }
+
+  if (typeof schema.$ref === "string") {
+    if (visitedReferences.has(schema.$ref)) {
+      return undefined;
+    }
+
+    const nextVisitedReferences = new Set(visitedReferences);
+    nextVisitedReferences.add(schema.$ref);
+    return getDiscriminatorRuntimeValue(
+      document,
+      resolveLocalReference(document, schema.$ref),
+      propertyName,
+      nextVisitedReferences,
+    );
+  }
+
+  if (!Array.isArray(schema.allOf)) {
+    return undefined;
+  }
+
+  const runtimeValues = new Set(
+    schema.allOf
+      .map((part) =>
+        getDiscriminatorRuntimeValue(
+          document,
+          part,
+          propertyName,
+          visitedReferences,
+        ),
+      )
+      .filter((value) => value !== undefined),
+  );
+
+  if (runtimeValues.size > 1) {
+    throw new Error(
+      `Conflicting discriminator values for property ${propertyName}`,
+    );
+  }
+
+  return runtimeValues.values().next().value;
+}
+
 function mappingTargetMatchesReference(target, reference) {
   if (target === reference) {
     return true;
@@ -107,10 +163,11 @@ export function addConstDiscriminatorMappings(document) {
       }
 
       const referencedSchema = resolveLocalReference(document, variant.$ref);
-      const discriminatorProperty = isRecord(referencedSchema)
-        ? referencedSchema.properties?.[propertyName]
-        : undefined;
-      const runtimeValue = getSingleStringValue(discriminatorProperty);
+      const runtimeValue = getDiscriminatorRuntimeValue(
+        document,
+        referencedSchema,
+        propertyName,
+      );
 
       if (runtimeValue === undefined) {
         continue;

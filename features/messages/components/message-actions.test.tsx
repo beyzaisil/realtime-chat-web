@@ -22,6 +22,22 @@ const message: MessageDto = {
   editedAt: null,
   deletedAt: null,
 };
+const captionlessMediaMessage: MessageDto = {
+  ...message,
+  id: "message-media",
+  clientMessageId: "client-media",
+  kind: "MEDIA",
+  body: null,
+  attachments: [
+    {
+      id: "attachment-1",
+      kind: "PDF",
+      originalFileName: "document.pdf",
+      contentType: "application/pdf",
+      url: "/attachments/attachment-1/original",
+    },
+  ],
+};
 
 const updateMutateAsync = vi.fn();
 const deleteMutateAsync = vi.fn();
@@ -118,6 +134,19 @@ describe("MessageActions", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps actions available for a non-deleted captionless MEDIA message", () => {
+    render(
+      <MessageActions
+        message={captionlessMediaMessage}
+        currentUserId="user-1"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Mesaj işlemleri" }),
+    ).toBeInTheDocument();
+  });
+
   it("opens the edit form with the current body and cancels it", async () => {
     render(<MessageActions message={message} currentUserId="user-1" />);
 
@@ -152,6 +181,7 @@ describe("MessageActions", () => {
     expect(updateMutateAsync).toHaveBeenCalledOnce();
     expect(updateMutateAsync).toHaveBeenCalledWith({
       messageId: "message-1",
+      kind: "TEXT",
       text: "Güncellenmiş mesaj",
     });
     await waitFor(() =>
