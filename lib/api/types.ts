@@ -34,6 +34,8 @@ export type MediaMessage = Schemas["MediaMessage"];
 export type MessageAttachment = Schemas["MessageAttachment"];
 export type ImageMessageAttachment = Schemas["ImageMessageAttachment"];
 export type PdfMessageAttachment = Schemas["PdfMessageAttachment"];
+export type AttachmentUploadIntent = Schemas["AttachmentUploadIntent"];
+export type PresignedUpload = Schemas["PresignedUpload"];
 export type MessageHistoryResponse = Schemas["MessageHistoryResponse"];
 export type UpdateReadRequest = Schemas["UpdateReadRequest"];
 export type ReadWatermarkResponse = Schemas["ReadWatermarkResponse"];
@@ -147,6 +149,18 @@ export type DeleteMessagePath =
   operations["deleteMessage"]["parameters"]["path"];
 export type DeleteMessageOperationResponse =
   operations["deleteMessage"]["responses"][200]["content"]["application/json"];
+export type CreateMessageAttachmentUploadPath =
+  operations["createMessageAttachmentUpload"]["parameters"]["path"];
+export type CreateMessageAttachmentUploadOperationRequest =
+  operations["createMessageAttachmentUpload"]["requestBody"]["content"]["application/json"];
+export type CreateMessageAttachmentUploadOperationResponse =
+  operations["createMessageAttachmentUpload"]["responses"][201]["content"]["application/json"];
+export type CompleteMessageAttachmentUploadPath =
+  operations["completeMessageAttachmentUpload"]["parameters"]["path"];
+export type CompleteMessageAttachmentUploadOperationResponse =
+  operations["completeMessageAttachmentUpload"]["responses"][200]["content"]["application/json"];
+export type AccessMessageAttachmentPath =
+  operations["accessMessageAttachment"]["parameters"]["path"];
 export type UpdateReadWatermarkPath =
   operations["updateReadWatermark"]["parameters"]["path"];
 export type UpdateReadWatermarkOperationRequest =

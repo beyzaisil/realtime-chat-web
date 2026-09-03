@@ -187,4 +187,26 @@ describe("API client authentication", () => {
     ).rejects.toMatchObject({ code: "INVALID_TOKEN" });
     expect(refreshAccessToken).not.toHaveBeenCalled();
   });
+
+  it("returns a successful raw response without parsing its body", async () => {
+    const response = new Response("binary attachment", {
+      status: 200,
+      headers: { "Content-Type": "application/pdf" },
+    });
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(response),
+      auth: {
+        getAccessToken: () => "token",
+        refreshAccessToken: async () => null,
+        onUnauthorized: () => undefined,
+      },
+    });
+
+    await expect(
+      client.request<Response>("/api/v1/attachments/file", {
+        responseType: "raw",
+      }),
+    ).resolves.toBe(response);
+  });
 });
