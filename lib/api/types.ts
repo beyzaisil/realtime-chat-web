@@ -8,6 +8,9 @@ export type RegisterRequest = Schemas["RegisterRequest"];
 export type AuthResponse = Schemas["AuthResponse"];
 export type RefreshResponse = Schemas["RefreshResponse"];
 export type CurrentUserResponse = Schemas["CurrentUserResponse"];
+export type AuthSession = Schemas["AuthSession"];
+export type AuthSessionListResponse = Schemas["AuthSessionListResponse"];
+export type ChangePasswordRequest = Schemas["ChangePasswordRequest"];
 
 export type PublicPeerUser = Schemas["PublicPeerUser"];
 export type UserSearchResponse = Schemas["UserSearchResponse"];
@@ -56,6 +59,12 @@ export type CompleteAvatarUploadOperationResponse =
   operations["completeAvatarUpload"]["responses"][200]["content"]["application/json"];
 export type DeleteCurrentUserAvatarOperationResponse =
   operations["deleteCurrentUserAvatar"]["responses"][200]["content"]["application/json"];
+export type ChangePasswordOperationRequest =
+  operations["changePassword"]["requestBody"]["content"]["application/json"];
+export type ListAuthSessionsOperationResponse =
+  operations["listAuthSessions"]["responses"][200]["content"]["application/json"];
+export type RevokeAuthSessionPath =
+  operations["revokeAuthSession"]["parameters"]["path"];
 
 export type SearchUsersQuery =
   operations["searchUsers"]["parameters"]["query"];

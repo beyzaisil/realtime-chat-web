@@ -21,17 +21,29 @@ const currentUser = {
   createdAt: "2030-01-01T00:00:00.000Z",
 };
 
-function renderDialog(request: ReturnType<typeof vi.fn>) {
+function renderDialog(
+  request: (path: string, options?: unknown) => unknown,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
   const setCurrentUser = vi.fn();
+  const routedRequest = vi.fn((path: string, options?: unknown) => {
+    if (path === "/api/v1/auth/sessions") {
+      return Promise.resolve({ items: [] });
+    }
+
+    return request(path, options);
+  });
   const auth = {
     user: currentUser,
     accessToken: "token",
     status: "authenticated",
-    apiClient: { request: request as unknown as ApiClient["request"] },
+    apiClient: {
+      request: routedRequest as unknown as ApiClient["request"],
+    },
     setCurrentUser,
+    clearSession: vi.fn(),
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
