@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "realtime-chat-api",
+    "commit": "87910ea05d38a213da56beac98358061862af091",
+    "path": "docs/openapi.yaml"
+  },
+  "snapshotSha256": "b7cb0f06580019e8c90cd3d4d565507c49b44ade95c40b59bca584b2f3d6f043"
+}
