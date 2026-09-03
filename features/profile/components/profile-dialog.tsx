@@ -10,6 +10,7 @@ import {
 
 import { useAuth } from "../../../providers/auth-provider";
 import { UserAvatar } from "../../users/components/user-avatar";
+import { AccountSecurity } from "../../security/components/account-security";
 import { getProfileErrorMessage } from "../api/profile-error";
 import { validateAvatarFile } from "../api/profile-api";
 import {
@@ -342,6 +343,10 @@ export function ProfileDialog({
               </button>
             </div>
           </form>
+
+          <div className="h-px bg-slate-100" />
+
+          <AccountSecurity />
         </div>
       </section>
     </div>

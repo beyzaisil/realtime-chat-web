@@ -35,6 +35,7 @@ function createHarness(request: ReturnType<typeof vi.fn>) {
     status: "authenticated",
     apiClient: { request: request as unknown as ApiClient["request"] },
     setCurrentUser,
+    clearSession: vi.fn(),
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),

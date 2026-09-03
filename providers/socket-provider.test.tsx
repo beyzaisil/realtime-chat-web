@@ -62,6 +62,7 @@ function authValue(
     status,
     apiClient,
     setCurrentUser,
+    clearSession: vi.fn(),
     login,
     register,
     logout,

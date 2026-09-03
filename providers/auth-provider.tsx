@@ -38,6 +38,7 @@ export interface AuthContextValue {
   status: AuthStatus;
   apiClient: ApiClient;
   setCurrentUser(user: UserDto): void;
+  clearSession(): void;
   login(input: LoginInput): Promise<void>;
   register(input: RegisterInput): Promise<void>;
   logout(): Promise<void>;
@@ -188,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       apiClient,
       setCurrentUser,
+      clearSession: clearAuth,
       login,
       register,
       logout,
@@ -200,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status,
       apiClient,
       setCurrentUser,
+      clearAuth,
       login,
       register,
       logout,
