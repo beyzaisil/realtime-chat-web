@@ -1,4 +1,6 @@
 contracts/openapi.yaml text eol=lf
+contracts/openapi-source.json text eol=lf
 lib/api/generated/*.ts text eol=lf
 scripts/*openapi* text eol=lf
 scripts/text-file.mjs text eol=lf
+.github/workflows/*.yml text eol=lf

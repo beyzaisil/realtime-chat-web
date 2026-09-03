@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import {
+  mkdir,
   mkdtemp,
   readFile,
   rm,
@@ -83,6 +85,66 @@ describe("OpenAPI contract tooling", () => {
 
     expect(secondResult.status).toBe(0);
     expect(secondResult.stdout).toContain("unchanged");
+    expect(after.mtimeMs).toBe(before.mtimeMs);
+  });
+
+  it("records deterministic Git provenance for a synced snapshot", async () => {
+    const directory = await createTemporaryDirectory();
+    const backendDirectory = join(directory, "realtime-chat-api");
+    const sourcePath = join(backendDirectory, "docs", "openapi.yaml");
+    const snapshotPath = join(directory, "openapi.yaml");
+    const metadataPath = join(directory, "openapi-source.json");
+    const contract = await readFile(contractPath, "utf8");
+    await mkdir(join(backendDirectory, "docs"), { recursive: true });
+    await writeFile(sourcePath, contract, "utf8");
+
+    const git = (...arguments_: string[]) =>
+      spawnSync("git", arguments_, {
+        cwd: backendDirectory,
+        encoding: "utf8",
+      });
+    expect(git("init").status).toBe(0);
+    expect(git("config", "user.email", "contract-test@example.com").status).toBe(0);
+    expect(git("config", "user.name", "Contract Test").status).toBe(0);
+    expect(git("add", "docs/openapi.yaml").status).toBe(0);
+    expect(git("commit", "-m", "add contract").status).toBe(0);
+    const commit = git("rev-parse", "HEAD").stdout.trim();
+
+    const firstResult = runScript(
+      syncScript,
+      sourcePath,
+      snapshotPath,
+      metadataPath,
+    );
+    expect(firstResult.status).toBe(0);
+
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    const snapshotSha256 = createHash("sha256")
+      .update(contract.replace(/\r\n?/g, "\n"))
+      .digest("hex");
+    expect(metadata).toEqual({
+      schemaVersion: 1,
+      source: {
+        repository: "realtime-chat-api",
+        commit,
+        path: "docs/openapi.yaml",
+      },
+      snapshotSha256,
+    });
+
+    const fixedTime = new Date("2020-01-01T00:00:00.000Z");
+    await utimes(metadataPath, fixedTime, fixedTime);
+    const before = await stat(metadataPath);
+    const secondResult = runScript(
+      syncScript,
+      sourcePath,
+      snapshotPath,
+      metadataPath,
+    );
+    const after = await stat(metadataPath);
+
+    expect(secondResult.status).toBe(0);
+    expect(secondResult.stdout).toContain("source metadata is unchanged");
     expect(after.mtimeMs).toBe(before.mtimeMs);
   });
 
