@@ -10,7 +10,11 @@ import type {
 } from "../../../lib/socket/socket-events";
 import { SocketContext } from "../../../providers/socket-provider";
 import { conversationKeys } from "../../conversations/hooks/use-conversations";
-import type { MessageHistoryPage } from "../types";
+import type {
+  MediaMessageDto,
+  MessageHistoryPage,
+  TextMessageDto,
+} from "../types";
 import {
   flattenMessageHistory,
   type MessageHistoryData,
@@ -25,8 +29,8 @@ type MessageEventName =
 type MessageHandler = (payload: { message: MessageEventDto }) => void;
 
 function createMessage(
-  overrides: Partial<MessageEventDto> = {},
-): MessageEventDto {
+  overrides: Partial<TextMessageDto> = {},
+): TextMessageDto {
   return {
     id: "message-1",
     conversationId: "conversation-1",
@@ -37,6 +41,32 @@ function createMessage(
     createdAt: "2030-01-01T10:00:00.000Z",
     editedAt: null,
     deletedAt: null,
+    ...overrides,
+  };
+}
+
+function createMediaMessage(
+  overrides: Partial<MediaMessageDto> = {},
+): MediaMessageDto {
+  return {
+    id: "message-media-1",
+    conversationId: "conversation-1",
+    senderId: "user-1",
+    clientMessageId: "client-media-1",
+    kind: "MEDIA",
+    body: "Media caption",
+    createdAt: "2030-01-01T10:00:00.000Z",
+    editedAt: null,
+    deletedAt: null,
+    attachments: [
+      {
+        id: "attachment-1",
+        kind: "PDF",
+        originalFileName: "document.pdf",
+        contentType: "application/pdf",
+        url: "/attachments/attachment-1/original",
+      },
+    ],
     ...overrides,
   };
 }
@@ -188,6 +218,34 @@ describe("useConversationRealtime", () => {
     expect(harness.messages()[0]).toMatchObject({
       id: "message-1",
       body: null,
+      deletedAt: "2030-01-01T10:05:00.000Z",
+    });
+  });
+
+  it("applies MEDIA create, update and delete events without duplicates", () => {
+    const created = createMediaMessage();
+    const harness = createHarness();
+
+    harness.emitMessage("message:created", created);
+    harness.emitMessage("message:updated", {
+      ...created,
+      body: null,
+      editedAt: "2030-01-01T10:03:00.000Z",
+    });
+    harness.emitMessage("message:deleted", {
+      ...created,
+      body: null,
+      attachments: [],
+      editedAt: "2030-01-01T10:03:00.000Z",
+      deletedAt: "2030-01-01T10:05:00.000Z",
+    });
+
+    expect(harness.messages()).toHaveLength(1);
+    expect(harness.messages()[0]).toMatchObject({
+      id: "message-media-1",
+      kind: "MEDIA",
+      body: null,
+      attachments: [],
       deletedAt: "2030-01-01T10:05:00.000Z",
     });
   });

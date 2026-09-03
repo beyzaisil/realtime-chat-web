@@ -8,14 +8,17 @@ import {
   AuthContext,
   type AuthContextValue,
 } from "../../../providers/auth-provider";
-import type { MessageDto } from "../types";
+import type {
+  MediaMessageDto,
+  TextMessageDto,
+} from "../types";
 import { useMessageHistory } from "./use-message-history";
 
 function message(
   id: string,
   createdAt: string,
-  overrides: Partial<MessageDto> = {},
-): MessageDto {
+  overrides: Partial<TextMessageDto> = {},
+): TextMessageDto {
   return {
     id,
     conversationId: "conversation-1",
@@ -26,6 +29,34 @@ function message(
     createdAt,
     editedAt: null,
     deletedAt: null,
+    ...overrides,
+  };
+}
+
+function mediaMessage(
+  id: string,
+  createdAt: string,
+  overrides: Partial<MediaMessageDto> = {},
+): MediaMessageDto {
+  return {
+    id,
+    conversationId: "conversation-1",
+    senderId: "user-2",
+    clientMessageId: `client-${id}`,
+    kind: "MEDIA",
+    body: null,
+    createdAt,
+    editedAt: null,
+    deletedAt: null,
+    attachments: [
+      {
+        id: `attachment-${id}`,
+        kind: "PDF",
+        originalFileName: `${id}.pdf`,
+        contentType: "application/pdf",
+        url: `/attachments/${id}/original`,
+      },
+    ],
     ...overrides,
   };
 }
@@ -105,5 +136,45 @@ describe("useMessageHistory", () => {
     expect(String(requestMock.mock.calls[1]?.[0])).toContain(
       "before=older-cursor",
     );
+  });
+
+  it("keeps captionless and deleted MEDIA messages in history order", async () => {
+    const captionless = mediaMessage(
+      "message-media-1",
+      "2030-01-01T10:00:00.000Z",
+    );
+    const deleted = mediaMessage(
+      "message-media-2",
+      "2030-01-02T10:00:00.000Z",
+      {
+        attachments: [],
+        deletedAt: "2030-01-02T11:00:00.000Z",
+      },
+    );
+    const requestMock = vi.fn().mockResolvedValue({
+      items: [captionless, deleted],
+      nextCursor: null,
+    });
+    const apiClient: ApiClient = {
+      request: requestMock as unknown as ApiClient["request"],
+    };
+    const { result } = renderHook(
+      () => useMessageHistory("conversation-1"),
+      { wrapper: createWrapper(apiClient) },
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.messages).toEqual([captionless, deleted]);
+    expect(result.current.messages[0]).toMatchObject({
+      kind: "MEDIA",
+      body: null,
+      deletedAt: null,
+    });
+    expect(result.current.messages[1]).toMatchObject({
+      kind: "MEDIA",
+      body: null,
+      deletedAt: "2030-01-02T11:00:00.000Z",
+      attachments: [],
+    });
   });
 });

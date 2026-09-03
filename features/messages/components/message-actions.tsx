@@ -36,7 +36,7 @@ export function MessageActions({
   currentUserId: string;
   onEditingChange?(isEditing: boolean): void;
 }) {
-  const isDeleted = message.deletedAt !== null || message.body === null;
+  const isDeleted = message.deletedAt !== null;
 
   if (message.senderId !== currentUserId || isDeleted) {
     return null;
@@ -199,6 +199,7 @@ function OwnedMessageActions({
     try {
       await updateMessage.mutateAsync({
         messageId: message.id,
+        kind: message.kind,
         text: trimmedDraft,
       });
       restoreMenuFocus();

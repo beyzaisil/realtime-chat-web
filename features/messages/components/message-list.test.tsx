@@ -26,6 +26,25 @@ const own: MessageDto = {
   senderId: "user-1",
   body: "Selam",
 };
+const media: MessageDto = {
+  ...incoming,
+  id: "message-media",
+  clientMessageId: "client-media",
+  kind: "MEDIA",
+  body: "Tatil fotoğrafı",
+  attachments: [
+    {
+      id: "attachment-image",
+      kind: "IMAGE",
+      originalFileName: "holiday.png",
+      contentType: "image/webp",
+      width: 1280,
+      height: 720,
+      url: "/attachments/attachment-image/original",
+      thumbnailUrl: "/attachments/attachment-image/thumbnail",
+    },
+  ],
+};
 
 function historyResult(overrides: Record<string, unknown> = {}) {
   return {
@@ -113,15 +132,49 @@ describe("MessageList", () => {
     expect(screen.queryByText("düzenlendi")).not.toBeInTheDocument();
   });
 
-  it("renders a tombstone when the message body is null", () => {
+  it("renders a MEDIA message caption", () => {
     vi.mocked(useMessageHistory).mockReturnValue(
-      historyResult({ messages: [{ ...incoming, body: null }] }),
+      historyResult({ messages: [media] }),
+    );
+    render(
+      <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Tatil fotoğrafı")).toBeInTheDocument();
+    expect(screen.queryByText("Bu mesaj silindi.")).not.toBeInTheDocument();
+  });
+
+  it("renders a captionless MEDIA message without a tombstone", () => {
+    vi.mocked(useMessageHistory).mockReturnValue(
+      historyResult({ messages: [{ ...media, body: null }] }),
+    );
+    render(
+      <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Medya mesajı")).toBeInTheDocument();
+    expect(screen.queryByText("Bu mesaj silindi.")).not.toBeInTheDocument();
+  });
+
+  it("renders a deleted MEDIA message as a tombstone", () => {
+    vi.mocked(useMessageHistory).mockReturnValue(
+      historyResult({
+        messages: [
+          {
+            ...media,
+            body: null,
+            attachments: [],
+            deletedAt: "2030-01-01T10:10:00.000Z",
+          },
+        ],
+      }),
     );
     render(
       <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
     );
 
     expect(screen.getByText("Bu mesaj silindi.")).toBeInTheDocument();
+    expect(screen.queryByText("Medya mesajı")).not.toBeInTheDocument();
   });
 
   it("requests the next history cursor page", () => {

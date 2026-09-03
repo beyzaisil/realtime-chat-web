@@ -87,6 +87,7 @@ describe("message mutation hooks", () => {
     await act(async () => {
       await result.current.mutateAsync({
         messageId: "message-1",
+        kind: "TEXT",
         text: "  Güncellenmiş mesaj  ",
       });
     });
@@ -108,6 +109,55 @@ describe("message mutation hooks", () => {
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: conversationKeys.lists(),
     });
+  });
+
+  it("uses the media caption request shape for a MEDIA message", async () => {
+    const media: MessageDto = {
+      ...original,
+      id: "message-media",
+      clientMessageId: "client-media",
+      kind: "MEDIA",
+      body: null,
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "PDF",
+          originalFileName: "document.pdf",
+          contentType: "application/pdf",
+          url: "/attachments/attachment-1/original",
+        },
+      ],
+    };
+    const request = vi.fn().mockResolvedValue({
+      ...media,
+      body: "Yeni başlık",
+      editedAt: "2030-01-01T10:05:00.000Z",
+    });
+    const { Wrapper } = createHarness({
+      request: request as unknown as ApiClient["request"],
+    });
+    const { result } = renderHook(
+      () => useUpdateMessage("conversation-1"),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        messageId: media.id,
+        kind: media.kind,
+        text: "  Yeni başlık  ",
+      });
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      "/api/v1/conversations/conversation-1/messages/message-media",
+      {
+        method: "PATCH",
+        json: {
+          content: { type: "media", text: "Yeni başlık" },
+        },
+      },
+    );
   });
 
   it("replaces a deleted message with its tombstone", async () => {
@@ -158,7 +208,11 @@ describe("message mutation hooks", () => {
 
       await expect(
         act(() =>
-          result.current.mutateAsync({ messageId: "message-1", text }),
+          result.current.mutateAsync({
+            messageId: "message-1",
+            kind: "TEXT",
+            text,
+          }),
         ),
       ).rejects.toThrow("Invalid message content");
       expect(request).not.toHaveBeenCalled();
