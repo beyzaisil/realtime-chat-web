@@ -1,4 +1,4 @@
-import type { Message } from "../api/types";
+import type { Message, PublicPeerUser } from "../api/types";
 
 export interface SessionReadyPayload {
   userId: string;
@@ -20,6 +20,7 @@ export type PresenceSubscriptionAck =
   | { ok: false; error: { code: "VALIDATION_ERROR" } };
 
 export type MessageEventDto = Message;
+export type UserUpdatedEventDto = PublicPeerUser;
 
 export interface ReadUpdatedPayload {
   conversationId: string;
@@ -50,6 +51,7 @@ export interface ChatServerToClientEvents {
   "session:ready": (payload: SessionReadyPayload) => void;
   "auth:expiring": () => void;
   "auth:revoked": () => void;
+  "user:updated": (payload: { user: UserUpdatedEventDto }) => void;
   "presence:updated": (payload: PresenceUpdatedPayload) => void;
   "message:created": (payload: { message: MessageEventDto }) => void;
   "message:updated": (payload: { message: MessageEventDto }) => void;

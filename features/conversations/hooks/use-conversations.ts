@@ -19,8 +19,9 @@ import type { ConversationListItem } from "../types";
 export const conversationKeys = {
   all: ["conversations"] as const,
   lists: () => [...conversationKeys.all, "list"] as const,
+  details: () => [...conversationKeys.all, "detail"] as const,
   detail: (conversationId: string) =>
-    [...conversationKeys.all, "detail", conversationId] as const,
+    [...conversationKeys.details(), conversationId] as const,
 };
 
 export function useConversations() {
