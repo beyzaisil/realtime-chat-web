@@ -366,6 +366,43 @@ export interface paths {
         patch: operations["updateMessage"];
         trace?: never;
     };
+    "/api/v1/conversations/{conversationId}/mute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the authenticated member's notification mute preference */
+        patch: operations["updateConversationMute"];
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversationId}/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Mark every unread notification for one conversation as read
+         * @description Does not change the message read watermark. Repeated calls return zero.
+         */
+        patch: operations["markConversationNotificationsRead"];
+        trace?: never;
+    };
     "/api/v1/conversations/{conversationId}/owner": {
         parameters: {
             query?: never;
@@ -443,6 +480,57 @@ export interface paths {
         };
         /** Süreç canlılık kontrolü */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notifications in descending creation order */
+        get: operations["listNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Mark one owned notification as read */
+        patch: operations["markNotificationRead"];
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the unread notification count */
+        get: operations["getNotificationUnreadCount"];
         put?: never;
         post?: never;
         delete?: never;
@@ -634,6 +722,11 @@ export interface components {
             items: components["schemas"]["ListedConversation"][];
             nextCursor: string | null;
         };
+        ConversationMuteResponse: {
+            /** Format: uuid */
+            conversationId: string;
+            muted: boolean;
+        };
         CreateAttachmentUploadRequest: {
             /** @description IMAGE için en fazla 10485760, PDF için en fazla 26214400 byte. */
             contentLength: number;
@@ -790,6 +883,9 @@ export interface components {
             /** Format: password */
             password: string;
         };
+        MarkConversationNotificationsReadResponse: {
+            markedCount: number;
+        };
         MediaCaptionUpdateContent: {
             text: string | null;
             /** @constant */
@@ -839,6 +935,42 @@ export interface components {
         MessageHistoryResponse: {
             items: components["schemas"]["Message"][];
             nextCursor: string | null;
+        };
+        Notification: {
+            /** Format: uuid */
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: uuid */
+            id: string;
+            message: components["schemas"]["NotificationMessage"];
+            /** Format: date-time */
+            readAt: string | null;
+            type: components["schemas"]["NotificationType"];
+        };
+        NotificationListResponse: {
+            items: components["schemas"]["Notification"][];
+            nextCursor: string | null;
+        };
+        NotificationMessage: {
+            /** @description Null when the current message is soft-deleted or an uncaptioned media message. */
+            body: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deletedAt: string | null;
+            /** Format: date-time */
+            editedAt: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "TEXT" | "MEDIA";
+            sender: components["schemas"]["PublicPeerUser"];
+        };
+        /** @enum {string} */
+        NotificationType: "MESSAGE_CREATED";
+        NotificationUnreadCountResponse: {
+            unreadCount: number;
         };
         PdfMessageAttachment: {
             /** @constant */
@@ -928,6 +1060,9 @@ export interface components {
             text: string;
             /** @constant */
             type: "text";
+        };
+        UpdateConversationMuteRequest: {
+            muted: boolean;
         };
         UpdateCurrentUserRequest: {
             /** @description Trim edilir. */
@@ -1110,6 +1245,24 @@ export interface components {
                 [name: string]: unknown;
             };
             content: {
+                "application/json": components["schemas"]["ErrorResponse"];
+            };
+        };
+        /** @description Notification does not exist or is owned by another user */
+        NotificationNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "error": {
+                 *         "code": "NOTIFICATION_NOT_FOUND",
+                 *         "message": "Notification not found",
+                 *         "requestId": "77777777-7777-4777-8777-777777777777"
+                 *       }
+                 *     }
+                 */
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
@@ -2209,6 +2362,69 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    updateConversationMute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateConversationMuteRequest"];
+            };
+        };
+        responses: {
+            /** @description Current mute preference */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationMuteResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            404: components["responses"]["ConversationNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markConversationNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @example 33333333-3333-4333-8333-333333333333 */
+                conversationId: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Number of notifications marked by this call */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "markedCount": 2
+                     *     }
+                     */
+                    "application/json": components["schemas"]["MarkConversationNotificationsReadResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            404: components["responses"]["ConversationNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     transferGroupOwnership: {
         parameters: {
             query?: never;
@@ -2458,6 +2674,86 @@ export interface operations {
                     "application/json": components["schemas"]["HealthResponse"];
                 };
             };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                /** @description The previous response's opaque base64url `nextCursor` value. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification page scoped to the authenticated recipient */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponse"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current notification; repeated calls are idempotent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Notification"];
+                };
+            };
+            400: components["responses"]["ValidationError"];
+            401: components["responses"]["BearerUnauthorized"];
+            404: components["responses"]["NotificationNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getNotificationUnreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notification count independent from message read watermarks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "unreadCount": 3
+                     *     }
+                     */
+                    "application/json": components["schemas"]["NotificationUnreadCountResponse"];
+                };
+            };
+            401: components["responses"]["BearerUnauthorized"];
+            500: components["responses"]["InternalError"];
         };
     };
     getReadiness: {
