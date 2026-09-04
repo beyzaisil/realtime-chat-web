@@ -4,12 +4,17 @@ This file records realtime integration requirements that are not represented by
 the HTTP-only OpenAPI snapshot. The backend remains the source of truth for
 Socket.IO event delivery.
 
-## OPEN — Group discovery event delivery
+## RESOLVED — Group discovery event delivery
 
 Observed against backend commit
 `e0732b098240f4b6e9be14ea0389ec83392681e6`.
 
-### Current backend behavior
+Resolved by backend commit
+`bee0221ce61729a75fad9258a4888e212ea04273`
+and merged into backend `main` with commit
+`daef1e4`.
+
+### Original backend behavior
 
 - `group:created` is emitted only to `conversation:{conversationId}`.
 - `member:added` is emitted only to `conversation:{conversationId}`.
@@ -23,7 +28,7 @@ Relevant backend source:
 - `src/realtime/groups/group-publisher.ts`
 - `src/realtime/server/chat-events.ts`
 
-### Required backend contract
+### Implemented backend contract
 
 - `group:created` must be delivered to every active member's
   `user:{userId}` room. Its existing payload remains:
@@ -72,5 +77,6 @@ that metadata up through the normal contract sync process.
 
 The frontend `feat/group-conversation-realtime` implementation already handles
 both events and updates the conversation caches when the events are delivered.
-The browser acceptance criterion — a newly created group appears without a page
-refresh — remains blocked until the backend delivery contract above is met.
+The browser acceptance criterion was verified after backend commit `bee0221`:
+a newly created group appears without a page refresh and discovery events are
+not duplicated.
