@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import type { AccessMessageAttachmentPath } from "../../../lib/api/types";
 import { useAuth } from "../../../providers/auth-provider";
 import {
-  accessMessageAttachment,
+  accessMessageAttachmentThroughWebProxy,
   uploadMessageAttachment,
   uploadMessageAttachments,
 } from "../api/message-attachments-api";
@@ -40,7 +40,7 @@ export function useAttachmentAccess(conversationId: string) {
 
   return useMutation({
     mutationFn: ({ attachmentId, variant }: AttachmentAccessInput) =>
-      accessMessageAttachment(
+      accessMessageAttachmentThroughWebProxy(
         apiClient,
         conversationId,
         attachmentId,

@@ -11,7 +11,7 @@ import {
 import type { MessageDto } from "../types";
 import { flattenMessageHistory, type MessageHistoryData } from "./message-cache";
 import { messageKeys } from "./use-message-history";
-import { useSendMessage } from "./use-send-message";
+import { useSendMediaMessage, useSendMessage } from "./use-send-message";
 
 function createHarness(apiClient: ApiClient) {
   const queryClient = new QueryClient({
@@ -98,5 +98,65 @@ describe("useSendMessage", () => {
       );
       expect(flattenMessageHistory(cached)).toEqual([response]);
     });
+  });
+
+  it("creates a MEDIA message and upserts it into the same history cache", async () => {
+    const clientMessageId = "22222222-2222-4222-8222-222222222222";
+    const response: MessageDto = {
+      id: "message-media",
+      conversationId: "conversation-1",
+      senderId: "user-1",
+      clientMessageId,
+      kind: "MEDIA",
+      body: "Tatil",
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "PDF",
+          originalFileName: "report.pdf",
+          contentType: "application/pdf",
+          url: "/attachments/attachment-1/original",
+        },
+      ],
+      createdAt: "2030-01-01T10:00:00.000Z",
+      editedAt: null,
+      deletedAt: null,
+    };
+    const requestMock = vi.fn().mockResolvedValue(response);
+    const { queryClient, Wrapper } = createHarness({
+      request: requestMock as unknown as ApiClient["request"],
+    });
+    const { result } = renderHook(
+      () => useSendMediaMessage("conversation-1"),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        attachmentIds: ["attachment-1"],
+        clientMessageId,
+        text: "  Tatil  ",
+      });
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      "/api/v1/conversations/conversation-1/messages",
+      {
+        method: "POST",
+        json: {
+          clientMessageId,
+          content: {
+            type: "media",
+            attachmentIds: ["attachment-1"],
+            text: "Tatil",
+          },
+        },
+      },
+    );
+    expect(
+      flattenMessageHistory(
+        queryClient.getQueryData(messageKeys.history("conversation-1")),
+      ),
+    ).toEqual([response]);
   });
 });

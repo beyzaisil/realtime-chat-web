@@ -8,6 +8,7 @@ import {
   MAX_MESSAGE_ATTACHMENTS_TOTAL_BYTES,
   MAX_PDF_ATTACHMENT_BYTES,
   accessMessageAttachment,
+  accessMessageAttachmentThroughWebProxy,
   completeMessageAttachmentUpload,
   createMessageAttachmentUpload,
   uploadMessageAttachment,
@@ -131,6 +132,26 @@ describe("message attachment API", () => {
 
     expect(request).toHaveBeenCalledWith(
       "/api/v1/conversations/conversation%2Fid/attachments/attachment%2Fid/thumbnail",
+      { method: "GET", responseType: "raw" },
+    );
+  });
+
+  it("uses the same-origin web proxy for browser attachment access", async () => {
+    const response = new Response("pdf", { status: 200 });
+    const request = vi.fn().mockResolvedValue(response);
+
+    await expect(
+      accessMessageAttachmentThroughWebProxy(
+        apiClient(request),
+        "conversation/id",
+        "attachment id",
+        "original",
+        "http://chat.test:3000",
+      ),
+    ).resolves.toBe(response);
+
+    expect(request).toHaveBeenCalledWith(
+      "http://chat.test:3000/api/attachments/conversation%2Fid/attachment%20id/original",
       { method: "GET", responseType: "raw" },
     );
   });

@@ -34,6 +34,12 @@ export interface SendMessageInput {
   clientMessageId?: string;
 }
 
+export interface SendMediaMessageInput {
+  attachmentIds: string[];
+  text?: string;
+  clientMessageId?: string;
+}
+
 export interface UpdateMessageInput {
   messageId: string;
   kind: MessageDto["kind"];

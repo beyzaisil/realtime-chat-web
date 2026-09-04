@@ -7,6 +7,19 @@ import { MessageList } from "./message-list";
 
 vi.mock("../hooks/use-message-history");
 vi.mock("./message-actions", () => ({ MessageActions: () => null }));
+vi.mock("./message-attachments", () => ({
+  MessageAttachments: ({
+    attachments,
+  }: {
+    attachments: MessageDto extends infer _Message
+      ? Array<{ id: string; originalFileName: string }>
+      : never;
+  }) => (
+    <div aria-label="Rendered attachments">
+      {attachments.map((attachment) => attachment.originalFileName).join(", ")}
+    </div>
+  ),
+}));
 
 const incoming: MessageDto = {
   id: "message-1",
@@ -141,6 +154,7 @@ describe("MessageList", () => {
     );
 
     expect(screen.getByText("Tatil fotoğrafı")).toBeInTheDocument();
+    expect(screen.getByText("holiday.png")).toBeInTheDocument();
     expect(screen.queryByText("Bu mesaj silindi.")).not.toBeInTheDocument();
   });
 
@@ -152,7 +166,7 @@ describe("MessageList", () => {
       <MessageList conversationId="conversation-1" currentUserId="user-1" onLatestVisible={vi.fn()} />,
     );
 
-    expect(screen.getByText("Medya mesajı")).toBeInTheDocument();
+    expect(screen.getByText("holiday.png")).toBeInTheDocument();
     expect(screen.queryByText("Bu mesaj silindi.")).not.toBeInTheDocument();
   });
 
@@ -174,7 +188,7 @@ describe("MessageList", () => {
     );
 
     expect(screen.getByText("Bu mesaj silindi.")).toBeInTheDocument();
-    expect(screen.queryByText("Medya mesajı")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Rendered attachments")).not.toBeInTheDocument();
   });
 
   it("requests the next history cursor page", () => {

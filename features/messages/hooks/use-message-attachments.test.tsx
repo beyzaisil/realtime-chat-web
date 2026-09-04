@@ -137,7 +137,10 @@ describe("message attachment hooks", () => {
     });
 
     expect(request).toHaveBeenCalledWith(
-      "/api/v1/conversations/conversation-1/attachments/attachment-1/original",
+      new URL(
+        "/api/attachments/conversation-1/attachment-1/original",
+        window.location.origin,
+      ).toString(),
       { method: "GET", responseType: "raw" },
     );
   });

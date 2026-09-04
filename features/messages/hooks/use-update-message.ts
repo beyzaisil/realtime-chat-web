@@ -20,14 +20,17 @@ export function useUpdateMessage(conversationId: string) {
   return useMutation({
     mutationFn: ({ messageId, kind, text: rawText }: UpdateMessageInput) => {
       const text = rawText.trim();
-      if (text.length === 0 || text.length > MAX_MESSAGE_LENGTH) {
+      if (
+        (kind === "TEXT" && text.length === 0) ||
+        text.length > MAX_MESSAGE_LENGTH
+      ) {
         return Promise.reject(new Error("Invalid message content"));
       }
 
       return updateMessage(apiClient, conversationId, messageId, {
         content:
           kind === "MEDIA"
-            ? { type: "media", text }
+            ? { type: "media", text: text.length === 0 ? null : text }
             : { type: "text", text },
       });
     },
