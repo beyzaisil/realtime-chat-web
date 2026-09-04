@@ -190,7 +190,7 @@ describe("ConversationList", () => {
 
     render(<ConversationList />);
 
-    expect(screen.getByText("Medya mesajı")).toBeInTheDocument();
+    expect(screen.getByText("Dosya gönderildi")).toBeInTheDocument();
     expect(screen.queryByText("Mesaj silindi.")).not.toBeInTheDocument();
     expect(screen.queryByText("Henüz mesaj yok")).not.toBeInTheDocument();
   });

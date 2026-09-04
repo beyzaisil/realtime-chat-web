@@ -160,6 +160,49 @@ describe("message mutation hooks", () => {
     );
   });
 
+  it("allows removing a MEDIA caption without deleting its attachments", async () => {
+    const media: MessageDto = {
+      ...original,
+      id: "message-media",
+      clientMessageId: "client-media",
+      kind: "MEDIA",
+      body: "Eski açıklama",
+      attachments: [
+        {
+          id: "attachment-1",
+          kind: "PDF",
+          originalFileName: "document.pdf",
+          contentType: "application/pdf",
+          url: "/attachments/attachment-1/original",
+        },
+      ],
+    };
+    const request = vi.fn().mockResolvedValue({ ...media, body: null });
+    const { Wrapper } = createHarness({
+      request: request as unknown as ApiClient["request"],
+    });
+    const { result } = renderHook(
+      () => useUpdateMessage("conversation-1"),
+      { wrapper: Wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        messageId: media.id,
+        kind: media.kind,
+        text: "   ",
+      });
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      "/api/v1/conversations/conversation-1/messages/message-media",
+      {
+        method: "PATCH",
+        json: { content: { type: "media", text: null } },
+      },
+    );
+  });
+
   it("replaces a deleted message with its tombstone", async () => {
     const deleted: MessageDto = {
       ...original,

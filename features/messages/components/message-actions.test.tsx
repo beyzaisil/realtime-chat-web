@@ -147,6 +147,28 @@ describe("MessageActions", () => {
     ).toBeInTheDocument();
   });
 
+  it("allows clearing a MEDIA caption from the inline edit form", async () => {
+    render(
+      <MessageActions
+        message={{ ...captionlessMediaMessage, body: "PDF açıklaması" }}
+        currentUserId="user-1"
+      />,
+    );
+    const user = await openEditForm();
+    const textarea = screen.getByRole("textbox", { name: "Mesaj metni" });
+
+    await user.clear(textarea);
+    expect(screen.queryByText("Mesaj boş olamaz.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+
+    expect(updateMutateAsync).toHaveBeenCalledWith({
+      messageId: "message-media",
+      kind: "MEDIA",
+      text: "",
+    });
+  });
+
   it("opens the edit form with the current body and cancels it", async () => {
     render(<MessageActions message={message} currentUserId="user-1" />);
 

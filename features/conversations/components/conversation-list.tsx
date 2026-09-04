@@ -197,7 +197,7 @@ function getConversationPreview(
     return "Mesaj silindi.";
   }
 
-  return lastMessage.body ?? "Medya mesajı";
+  return lastMessage.body ?? "Dosya gönderildi";
 }
 
 function formatConversationTime(value: string): string {

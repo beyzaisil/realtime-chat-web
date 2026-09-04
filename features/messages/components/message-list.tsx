@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { isMediaMessage, type MessageDto } from "../types";
 import { useMessageHistory } from "../hooks/use-message-history";
 import { MessageActions } from "./message-actions";
+import { MessageAttachments } from "./message-attachments";
 
 const BOTTOM_THRESHOLD_PX = 96;
 
@@ -147,24 +148,31 @@ function MessageBubble({
   return (
     <article
       className={`group relative rounded-2xl px-3.5 py-2.5 shadow-sm transition-[width,max-width] ${
-        isEditing ? "w-full max-w-[420px]" : "max-w-[min(78%,560px)]"
+        isEditing
+          ? "w-full max-w-[420px]"
+          : isMediaMessage(message)
+            ? "max-w-[min(88%,560px)]"
+            : "max-w-[min(78%,560px)]"
       } ${
         isOwn
           ? "rounded-br-md bg-emerald-700 text-white"
           : "rounded-bl-md border border-slate-200 bg-white text-slate-900"
       }`}
     >
-      {!isEditing ? (
+      {!isEditing && !isDeleted && isMediaMessage(message) ? (
+        <MessageAttachments
+          attachments={message.attachments}
+          conversationId={message.conversationId}
+          isOwn={isOwn}
+        />
+      ) : null}
+      {!isEditing && (isDeleted || message.body !== null) ? (
         <p
           className={`whitespace-pre-wrap break-words text-sm leading-6 ${
             isDeleted ? "italic opacity-75" : isOwn ? "pr-9" : ""
           }`}
         >
-          {isDeleted
-            ? "Bu mesaj silindi."
-            : isMediaMessage(message) && message.body === null
-              ? "Medya mesajı"
-              : message.body}
+          {isDeleted ? "Bu mesaj silindi." : message.body}
         </p>
       ) : null}
       {!isEditing ? <span className="mt-1 flex items-center justify-end gap-1.5">

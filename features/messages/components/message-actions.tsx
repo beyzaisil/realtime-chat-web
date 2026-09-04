@@ -73,7 +73,7 @@ function OwnedMessageActions({
 
   const trimmedDraft = draft.trim();
   const validationMessage =
-    trimmedDraft.length === 0
+    message.kind === "TEXT" && trimmedDraft.length === 0
       ? "Mesaj boş olamaz."
       : draft.length > MAX_MESSAGE_LENGTH
         ? `Mesaj en fazla ${MAX_MESSAGE_LENGTH} karakter olabilir.`

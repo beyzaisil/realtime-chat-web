@@ -120,6 +120,23 @@ export async function accessMessageAttachment(
   );
 }
 
+export async function accessMessageAttachmentThroughWebProxy(
+  apiClient: ApiClient,
+  conversationId: AccessMessageAttachmentPath["conversationId"],
+  attachmentId: AccessMessageAttachmentPath["attachmentId"],
+  variant: AccessMessageAttachmentPath["variant"],
+  webOrigin: string = globalThis.location.origin,
+): Promise<Response> {
+  const proxyPath =
+    `/api/attachments/${encodeURIComponent(conversationId)}` +
+    `/${encodeURIComponent(attachmentId)}/${encodeURIComponent(variant)}`;
+
+  return apiClient.request<Response>(new URL(proxyPath, webOrigin).toString(), {
+    method: "GET",
+    responseType: "raw",
+  });
+}
+
 export function validateAttachmentFile(file: File): ValidatedAttachmentFile {
   if (file.size < 1) {
     throw new AttachmentClientError(
