@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
+import { GroupConversationRealtimeSync } from "../../features/conversations/realtime/group-conversation-realtime-sync";
 import { UserProfileRealtimeSync } from "../../features/users/realtime/user-profile-realtime-sync";
 import { useAuth } from "../../providers/auth-provider";
 import { SocketProvider } from "../../providers/socket-provider";
@@ -28,6 +29,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SocketProvider>
       <UserProfileRealtimeSync />
+      <GroupConversationRealtimeSync />
       {children}
     </SocketProvider>
   );
